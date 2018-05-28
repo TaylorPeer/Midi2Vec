@@ -3,6 +3,8 @@ from keras.layers import Dropout
 from keras.layers.recurrent import LSTM
 from keras.layers.core import Dense, Activation
 
+from keras import backend as K
+
 
 class SequenceLearner:
     """
@@ -36,3 +38,7 @@ class SequenceLearner:
         model.fit(x_train, y_train, verbose=0, batch_size=params['nn_batch_size'], epochs=params['nn_epochs'])
 
         return model
+
+    @staticmethod
+    def clear_session():
+        K.clear_session()

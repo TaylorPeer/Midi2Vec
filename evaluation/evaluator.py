@@ -6,19 +6,29 @@ from scipy.spatial import distance
 
 class Metrics:
 
-    def __init__(self, precision=None, recall=None, f1=None):
-        self._precision = precision
-        self._recall = recall
-        self._f1 = f1
+    def __init__(self):
+        self._total_precision = 0
+        self._total_recall = 0
+        self._total_f1 = 0
+        self._runs = 0
+
+    def log_run(self, precision=None, recall=None, f1=None):
+        self._runs += 1
+        if precision is not None:
+            self._total_precision += precision
+        if recall is not None:
+            self._total_recall += recall
+        if f1 is not None:
+            self._total_f1 += f1
 
     def get_precision(self):
-        return self._precision
+        return self._total_precision / self._runs
 
     def get_recall(self):
-        return self._recall
+        return self._total_recall / self._runs
 
     def get_f1(self):
-        return self._f1
+        return self._total_f1 / self._runs
 
 
 class Evaluator:

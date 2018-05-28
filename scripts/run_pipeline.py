@@ -51,7 +51,16 @@ def main():
 
     # Define training documents for sequence learning
     training_docs = []
-    training_docs.append("/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training")
+    training_docs.append("resources/breakbeats/084 Breakthru.mid")
+    training_docs.append("resources/breakbeats/086 Clouds.mid")
+    training_docs.append("resources/breakbeats/089 Get Out.mid")
+    training_docs.append("resources/breakbeats/089 Wrong.mid")
+    training_docs.append("resources/breakbeats/090 Deceive.mid")
+    training_docs.append("resources/breakbeats/090 New York.mid")
+    training_docs.append("resources/breakbeats/090 Radio.mid")
+    training_docs.append("resources/breakbeats/093 Pretender.mid")
+    training_docs.append("resources/breakbeats/093 Right Won.mid")
+    training_docs.append("resources/breakbeats/094 Run.mid")
 
     # Define evaluation documents for sequence learning
     evaluation_docs = []
@@ -62,8 +71,8 @@ def main():
     pipeline.set_data_loader(data_loader)
 
     pipeline.set_training_docs(training_docs)
-    pipeline.set_test_docs(evaluation_docs)
-    # alternative: pipeline.set_k_fold_cross_eval(k=5)
+    # pipeline.set_test_docs(evaluation_docs)
+    pipeline.set_k_fold_cross_eval(k=5)
 
     # pipeline.set_optimizer(genetic)
 
