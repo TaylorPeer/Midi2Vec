@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import KFold
 
 from encoding.encoder import Encoder
@@ -10,7 +11,7 @@ from evaluation.evaluator import Metrics
 
 class Pipeline:
     """
-    End-to-end encapsulation of encoder training, sequence learning and evaluation steps.
+    End-to-end encapsulation of encoder training, sequence learning and evaluation.
     """
 
     def __init__(self, params=None, data_loader=None, training_docs=None, test_docs=None):
@@ -46,34 +47,41 @@ class Pipeline:
     def run(self):
         """
         Runs the full pipeline as configured.
-        :return: evaluation metrics.
+        :return: list of run parameters and evaluation metrics.
         """
 
         params = self._get_params_for_run()
-        metrics = Metrics()
+        result_rows = []
 
         # Check for valid configuration
         if self._test_docs is None and self._k_folds == 0:
             self._logger.error("Explicit test set or number of cross-validation folds must be specified.")
-            return metrics
+            metrics = Metrics()
+            result_row = {**params, **metrics.get_scores_as_dict()}
+            result_rows.append(result_row)
+            return result_rows
 
-        # Continue while there are configured parameter settings to evaluate
+            # Continue while there are configured parameter settings to evaluate
         while params is not None:
 
             # Get collection of training and test sets for current run
+            current_metrics = Metrics()
             data_sets = self._get_training_and_test_sets()
             for (training_docs, test_docs) in data_sets:
                 # Retrieve an encoder module trained with the specified configuration
                 encoder = self._get_encoder(params)
+                self._train_and_eval_seq_learning(params, encoder, training_docs, test_docs, current_metrics)
 
-                self._train_and_eval_seq_learning(params, encoder, training_docs, test_docs, metrics)
+            # Store evaluation metrics of run
+            result_row = {**params, **current_metrics.get_scores_as_dict()}
+            result_rows.append(result_row)
 
             params = None
             if self._optimizer is not None:
-                # TODO invoke callback in optimizer, to report back on results of this run
+                # TODO invoke callback in optimizer to report back on results of this run
                 params = self._optimizer.get_next_params()
 
-        return metrics
+        return pd.DataFrame(result_rows)
 
     def _get_params_for_run(self):
         """
@@ -129,16 +137,16 @@ class Pipeline:
 
         # Check if already trained
         if encoder_id in self._trained_encoders:
-            self._logger.info("Loading encoder from cache: " + str(encoder_id))
+            self._logger.debug("Loading encoder from cache: " + str(encoder_id))
             return self._trained_encoders[encoder_id]
         else:
-            self._logger.info("Training new encoder model: " + str(encoder_id))
+            self._logger.debug("Training new encoder model: " + str(encoder_id))
             encoder = Encoder(params)
             docs = self._get_docs(encoder, params['doc2vec_docs'])
             encoder.set_documents(docs)
             encoder.train()
             self._trained_encoders[encoder_id] = encoder
-            self._logger.info("Added encoder to cache: " + str(encoder_id))
+            self._logger.debug("Added encoder to cache: " + str(encoder_id))
             return encoder
 
     def _get_docs(self, encoder, path):
@@ -150,13 +158,13 @@ class Pipeline:
         """
         # Check if already loaded
         if path in self._encoder_docs:
-            self._logger.info("Loading documents from cache: " + path)
+            self._logger.debug("Loading documents from cache: " + path)
             return self._encoder_docs[path]
         else:
-            self._logger.info("Loading documents from disk: " + path)
+            self._logger.debug("Loading documents from disk: " + path)
             docs = encoder.load_documents(path)
             self._encoder_docs[path] = docs
-            self._logger.info("Added documents to cache: " + path)
+            self._logger.debug("Added documents to cache: " + path)
             return docs
 
     def _train_and_eval_seq_learning(self, params, encoder, training_docs, test_docs, metrics):

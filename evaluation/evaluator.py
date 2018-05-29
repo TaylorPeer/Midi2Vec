@@ -22,13 +22,22 @@ class Metrics:
             self._total_f1 += f1
 
     def get_precision(self):
+        if self._runs == 0:
+            return 0
         return self._total_precision / self._runs
 
     def get_recall(self):
+        if self._runs == 0:
+            return 0
         return self._total_recall / self._runs
 
     def get_f1(self):
+        if self._runs == 0:
+            return 0
         return self._total_f1 / self._runs
+
+    def get_scores_as_dict(self):
+        return {"precision": self.get_precision(), "recall": self.get_recall(), "f1": self.get_f1()}
 
 
 class Evaluator:
@@ -110,7 +119,7 @@ class Evaluator:
         actual_values = actual_row.split(",")
 
         # How many predicted values actually occurred:
-        # TODO account for duplicate values within single row
+        # TODO account for possible duplicate values within single row
         precision = 0
         for predicted_value in predicted_values:
             if predicted_value in actual_values:

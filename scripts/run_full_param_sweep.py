@@ -1,7 +1,7 @@
 import sys
 import logging
 
-from data_loading.midi_data_loader import MidiDataLoader
+from data_loading.data_loaders import MidiDataLoader
 from midi_to_dataframe.note_mapper import NoteMapper
 from pipeline.pipeline import Pipeline
 from optimization.optimizers import BruteForce
@@ -14,7 +14,7 @@ logger.addHandler(stream_handler)
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "/Users/taylorpeer/Projects/se-project/midi-embeddings/data/full_1_measure_100k.txt"
+    encoder_training_docs = "resources/encoder_training_docs/full_1_measure_20k.txt"
 
     param_sweep_values = {
 
@@ -51,33 +51,22 @@ def main():
     data_loader = MidiDataLoader(note_mapper)
 
     # Define training documents for sequence learning
-    training_docs = []
-    training_docs.append("resources/breakbeats/084 Breakthru.mid")
-    training_docs.append("resources/breakbeats/086 Clouds.mid")
-    training_docs.append("resources/breakbeats/089 Get Out.mid")
-    training_docs.append("resources/breakbeats/089 Wrong.mid")
-    training_docs.append("resources/breakbeats/090 Deceive.mid")
-    training_docs.append("resources/breakbeats/090 New York.mid")
-    training_docs.append("resources/breakbeats/090 Radio.mid")
-    training_docs.append("resources/breakbeats/093 Pretender.mid")
-    training_docs.append("resources/breakbeats/093 Right Won.mid")
-    training_docs.append("resources/breakbeats/094 Run.mid")
+    training_docs = ["resources/breakbeats/084 Breakthru.mid", "resources/breakbeats/086 Clouds.mid",
+                     "resources/breakbeats/089 Get Out.mid", "resources/breakbeats/089 Wrong.mid",
+                     "resources/breakbeats/090 Deceive.mid", "resources/breakbeats/090 New York.mid",
+                     "resources/breakbeats/090 Radio.mid", "resources/breakbeats/093 Pretender.mid",
+                     "resources/breakbeats/093 Right Won.mid", "resources/breakbeats/094 Run.mid"]
 
     pipeline = Pipeline()
-
     pipeline.set_data_loader(data_loader)
-
     pipeline.set_training_docs(training_docs)
     pipeline.set_k_fold_cross_eval(k=5)
 
     brute_force_param_sweep = BruteForce(params=param_sweep_values)
     pipeline.set_optimizer(brute_force_param_sweep)
 
-    metrics = pipeline.run()
-
-    print(metrics.get_precision())
-    print(metrics.get_recall())
-    print(metrics.get_f1())
+    results_df = pipeline.run()
+    print(results_df.to_string())
 
 
 if __name__ == '__main__':

@@ -8,11 +8,17 @@ from keras import backend as K
 
 class SequenceLearner:
     """
-    TODO
+    Sequence learning module.
     """
 
     @staticmethod
     def train_model(params, training_data):
+        """
+        Trains a sequence learning model on the given training data.
+        :param params: TODO replace params with individual named parameters
+        :param training_data: the training data to use.
+        :return: the trained model.
+        """
         in_out_neurons = params['doc2vec_vector_size'] + len(params['nn_features'])
         hidden_neurons = params['nn_hidden_neurons']
         layers = params['nn_layers']
@@ -37,6 +43,7 @@ class SequenceLearner:
         # Build model
         model.fit(x_train, y_train, verbose=0, batch_size=params['nn_batch_size'], epochs=params['nn_epochs'])
 
+        # TODO abstract Keras objects -> do not return model directly
         return model
 
     @staticmethod

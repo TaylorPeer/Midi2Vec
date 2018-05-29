@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 class Optimizer(ABC):
     """
-    TODO
+    Base optimizer module.
     """
 
     def __init__(self):
@@ -19,7 +19,8 @@ class Optimizer(ABC):
 
 class BruteForce(Optimizer):
     """
-    TODO
+    Brute force optimizer that computes all permutations of a given list of hyperparameters, to be used in conjunction
+    with a Pipeline model.
     """
 
     def __init__(self, params):
@@ -30,7 +31,6 @@ class BruteForce(Optimizer):
         self._combinations = list(itertools.product(*values))
 
         # Randomize order
-        # TODO make this configurable?
         shuffle(self._combinations)
 
     def get_next_params(self):

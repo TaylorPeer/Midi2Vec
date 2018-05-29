@@ -7,8 +7,7 @@ import numpy as np
 from midi_to_dataframe.note_mapper import NoteMapper
 
 from encoding.encoder import Encoder
-from data_loading.data_loader import DataLoader
-from data_loading.midi_data_loader import MidiDataLoader
+from data_loading.data_loaders import DataLoader, MidiDataLoader
 
 logger = logging.getLogger()
 logger.level = logging.INFO

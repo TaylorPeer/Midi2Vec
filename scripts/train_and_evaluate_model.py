@@ -3,7 +3,7 @@ import logging
 from encoding.encoder import Encoder
 from evaluation.evaluator import Evaluator
 from sequence_learning.sequence_learner import SequenceLearner
-from data_loading.midi_data_loader import MidiDataLoader
+from data_loading.data_loaders import MidiDataLoader
 
 from midi_to_dataframe.note_mapper import NoteMapper
 
@@ -15,7 +15,7 @@ logger.addHandler(stream_handler)
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "/Users/taylorpeer/Projects/se-project/midi-embeddings/data/full_1_measure_100k.txt"
+    encoder_training_docs = "resources/encoder_training_docs/full_1_measure_20k.txt"
 
     model_params = {
 
@@ -55,8 +55,7 @@ def main():
     note_mapper = NoteMapper(note_mapping_config_path)
 
     # Define training documents for sequence learning
-    training_docs = []
-    training_docs.append("/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training")
+    training_docs = ["/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training"]
 
     # Define evaluation documents for sequence learning
     evaluation_docs = []
