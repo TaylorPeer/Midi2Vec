@@ -12,16 +12,16 @@ class MidiDataLoader(DataLoader):
     COL_TO_VECTORIZE = "notes"
     MIDI_FILE_EXTENSION = ".mid"
 
-    def __init__(self, params, note_mapper, encoder=None):
+    def __init__(self, note_mapper, params=None, encoder=None):
         super(MidiDataLoader, self).__init__(encoder)
-        self.params = params
-        self.note_mapper = note_mapper
+        self._note_mapper = note_mapper
+        self._params = params
 
     def load_data(self, data_source, fit_scaler=True):
 
         # Ensure encoder was set
-        if self.encoder is None:
-            self.logger.error("Unable to load data: encoder was not specified.")
+        if self._encoder is None:
+            self._logger.error("Unable to load data: encoder was not specified.")
             return np.vstack([]), np.vstack([])
 
         # Collect all MIDI files found in given data_source path
@@ -38,7 +38,7 @@ class MidiDataLoader(DataLoader):
             self.scaler = MinMaxScaler(feature_range=(0, 1))
             self.scaler.fit(pd.concat(dataframes))
         elif self.scaler is None:
-            self.logger.warning("fit_scaler disabled: scaling will be skipped.")
+            self._logger.warning("fit_scaler disabled: scaling will be skipped.")
 
         # Data separated by x and y
         x_data_full = []
@@ -50,7 +50,7 @@ class MidiDataLoader(DataLoader):
             if self.scaler is not None:
                 df = pd.DataFrame(self.scaler.transform(df), columns=df.columns)
 
-            (x_data, y_data) = self.frame_as_sequential(df, self.params['nn_lstm_n_prev'])
+            (x_data, y_data) = self.frame_as_sequential(df, self._params['nn_lstm_n_prev'])
 
             # Append to data to return
             if len(x_data) > 0 and len(y_data) > 0:
@@ -71,24 +71,24 @@ class MidiDataLoader(DataLoader):
         """
 
         # Initialize MIDI reader with configured note mapping
-        reader = MidiReader(self.note_mapper)
+        reader = MidiReader(self._note_mapper)
 
         # Load MIDI file as a Data Frame
         midi_dataframe = reader.convert_to_dataframe(path)
 
         # If empty sequence was loaded, abort
         if len(midi_dataframe) == 0:
-            self.logger.warning("File '" + str(path) + "' produced empty MIDI dataframe.")
+            self._logger.warning("File '" + str(path) + "' produced empty MIDI dataframe.")
             return pd.DataFrame()
 
         # Drop columns not passed as features / that will not be vectorized
-        cols_to_keep = self.params['nn_features'] + [self.COL_TO_VECTORIZE]
+        cols_to_keep = self._params['nn_features'] + [self.COL_TO_VECTORIZE]
         for column in midi_dataframe:
             if column not in cols_to_keep:
                 midi_dataframe.drop(column, axis=1, inplace=True)
 
         # Add columns to hold each element of vectors
-        for index in range(0, self.params['doc2vec_vector_size']):
+        for index in range(0, self._params['doc2vec_vector_size']):
             midi_dataframe[str(index)] = 0
 
         # Convert designated column string in each row to a corresponding vector
@@ -101,7 +101,7 @@ class MidiDataLoader(DataLoader):
 
             # Vectorize target column
             string_to_vectorize = row[self.COL_TO_VECTORIZE]
-            vector = self.encoder.convert_text_to_vector(string_to_vectorize)
+            vector = self._encoder.convert_text_to_vector(string_to_vectorize)
 
             # Update row with vectorized value
             new_row = values + list(vector)

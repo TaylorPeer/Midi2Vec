@@ -7,19 +7,23 @@ from abc import ABC, abstractmethod
 class DataLoader(ABC):
 
     def __init__(self, encoder=None):
-        self.logger = logging.getLogger(__name__)
-        self.encoder = encoder
-        self.scaler = None
+        self._logger = logging.getLogger(__name__)
+        self._params = None
+        self._encoder = encoder
+        self._scaler = None
 
     @abstractmethod
     def load_data(self, path):
         pass
 
+    def set_params(self, params):
+        self._params = params
+
     def set_encoder(self, encoder):
-        self.encoder = encoder
+        self._encoder = encoder
 
     def get_scaler(self):
-        return self.scaler
+        return self._scaler
 
     @staticmethod
     def frame_as_sequential(df, n_prev):

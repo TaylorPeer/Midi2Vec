@@ -21,7 +21,7 @@ class Encoder:
 
     def __init__(self, params):
         self.logger = logging.getLogger(__name__)
-        self.id = self._generate_id(params)
+        self.id = self.generate_id(params)
         self.params = params
         self.docs = []
         self.model = None
@@ -49,7 +49,6 @@ class Encoder:
         :param vectors: the vectors to convert to text.
         :return: a list of text representations corresponding to the input vectors.
         """
-
         # Skip first n features, which are not part of doc2vec vector
         # TODO handle this outside of this method
         index = len(self.params['nn_features'])
@@ -122,7 +121,6 @@ class Encoder:
         :param path_to_documents: the path to the file to load from.
         :return: the loaded documents.
         """
-
         docs = []
         processed_doc_count = 0
         with open(path_to_documents, 'rb') as data:
@@ -154,7 +152,7 @@ class Encoder:
         return most_similar
 
     @staticmethod
-    def _generate_id(params):
+    def generate_id(params):
         """
         Generates an ID that encapsulates the set of encoder parameters given.
         :param params: a dictionary containing the model parameters.

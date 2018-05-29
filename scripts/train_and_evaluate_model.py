@@ -63,7 +63,7 @@ def main():
     evaluation_docs.append("/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/test")
 
     # Load training MIDI files using MidiDataLoader
-    data_loader = MidiDataLoader(model_params, note_mapper, encoder)
+    data_loader = MidiDataLoader(note_mapper, params=model_params, encoder=encoder)
     training_data = data_loader.load_data(training_docs)
 
     # Set fit_scaler=False to re-use scaler from training set

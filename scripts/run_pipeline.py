@@ -27,7 +27,7 @@ def main():
         'doc2vec_learning_rate_end': 0.2,
         'doc2vec_min_count': 5,
         'doc2vec_negative': 0,
-        'doc2vec_vector_size': 5,
+        'doc2vec_vector_size': 4,
         'doc2vec_window': 1,
 
         # Sequence learning (Keras LSTM) settings:
@@ -47,7 +47,7 @@ def main():
     note_mapper = NoteMapper(note_mapping_config_path)
 
     # Data loader used to encode MIDI-format training files
-    data_loader = MidiDataLoader(pipeline_params, note_mapper)
+    data_loader = MidiDataLoader(note_mapper, params=pipeline_params)
 
     # Define training documents for sequence learning
     training_docs = []
