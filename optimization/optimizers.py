@@ -10,11 +10,22 @@ class Optimizer(ABC):
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self._logger = logging.getLogger(__name__)
+        self._callback = None
 
     @abstractmethod
     def get_next_params(self):
         pass
+
+    @abstractmethod
+    def process_run_result(self, params, metrics):
+        pass
+
+    def set_callback(self, callback):
+        self._callback = callback
+
+    def get_callback(self):
+        return self._callback
 
 
 class BruteForce(Optimizer):
@@ -36,6 +47,20 @@ class BruteForce(Optimizer):
     def get_next_params(self):
         if len(self._combinations) > 0:
             params = dict(self._combinations.pop(0))
-            self.logger.info("Returning next set of hyperparameters: " + str(params))
+            self._logger.info("Returning next set of hyperparameters: " + str(params))
             return params
         return None
+
+    def process_run_result(self, params, metrics):
+        """
+        Processes the results of a single run of the pipeline.
+        :param params: the hyperparameter settings of the run.
+        :param metrics: the evaluation metrics of the run.
+        :return: None
+        """
+        callback = self.get_callback()
+        if callback is not None:
+            print("calling callback!")
+            callback(params=params, metrics=metrics)
+        else:
+            print("callback was None!")

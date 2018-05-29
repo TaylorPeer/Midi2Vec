@@ -61,7 +61,7 @@ class Pipeline:
             result_rows.append(result_row)
             return result_rows
 
-            # Continue while there are configured parameter settings to evaluate
+        # Continue while there are configured parameter settings to evaluate
         while params is not None:
 
             # Get collection of training and test sets for current run
@@ -76,10 +76,15 @@ class Pipeline:
             result_row = {**params, **current_metrics.get_scores_as_dict()}
             result_rows.append(result_row)
 
-            params = None
+            # Invoke optimizer callback to report back on results of this run
             if self._optimizer is not None:
-                # TODO invoke callback in optimizer to report back on results of this run
+                self._optimizer.process_run_result(params=params, metrics=current_metrics.get_scores_as_dict())
+
+            # Check if there are additional runs to execute
+            if self._optimizer is not None:
                 params = self._optimizer.get_next_params()
+            else:
+                params = None
 
         return pd.DataFrame(result_rows)
 

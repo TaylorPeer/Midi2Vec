@@ -20,12 +20,12 @@ class Encoder:
     TOKEN_DELIMITER = ","
 
     def __init__(self, params):
-        self.logger = logging.getLogger(__name__)
-        self.id = self.generate_id(params)
-        self.params = params
-        self.docs = []
-        self.model = None
-        self.document_vectors = {}
+        self._logger = logging.getLogger(__name__)
+        self._id = self.generate_id(params)
+        self._params = params
+        self._docs = []
+        self._model = None
+        self._document_vectors = {}
 
     def convert_text_to_vector(self, text):
         """
@@ -34,12 +34,12 @@ class Encoder:
         :return: the vector representation.
         """
         # Check vector cache if text has already been vectorized before
-        if text not in self.document_vectors:
+        if text not in self._document_vectors:
             tokens = text.split(self.TOKEN_DELIMITER)
-            vector = self.model.infer_vector(tokens)
-            self.document_vectors[text] = vector
+            vector = self._model.infer_vector(tokens)
+            self._document_vectors[text] = vector
         else:
-            vector = self.document_vectors[text]
+            vector = self._document_vectors[text]
 
         return vector
 
@@ -51,7 +51,7 @@ class Encoder:
         """
         # Skip first n features, which are not part of doc2vec vector
         # TODO handle this outside of this method
-        index = len(self.params['nn_features'])
+        index = len(self._params['nn_features'])
 
         values = []
         for vector in vectors:
@@ -71,41 +71,41 @@ class Encoder:
 
         # Model parameters:
         cores = multiprocessing.cpu_count()
-        dm = self.params['doc2vec_dm']
-        dm_mean = self.params['doc2vec_dm_mean']
-        end_alpha = self.params['doc2vec_learning_rate_end']
-        epochs = self.params['doc2vec_epochs']
-        hs = self.params['doc2vec_hs']
-        negative = self.params['doc2vec_negative']
-        min_count = self.params['doc2vec_min_count']
-        start_alpha = self.params['doc2vec_learning_rate_start']
-        vector_size = self.params['doc2vec_vector_size']
-        window = self.params['doc2vec_window']
+        dm = self._params['doc2vec_dm']
+        dm_mean = self._params['doc2vec_dm_mean']
+        end_alpha = self._params['doc2vec_learning_rate_end']
+        epochs = self._params['doc2vec_epochs']
+        hs = self._params['doc2vec_hs']
+        negative = self._params['doc2vec_negative']
+        min_count = self._params['doc2vec_min_count']
+        start_alpha = self._params['doc2vec_learning_rate_start']
+        vector_size = self._params['doc2vec_vector_size']
+        window = self._params['doc2vec_window']
 
         start = time.clock()
 
         # Create model
-        self.model = Doc2Vec(dm=dm,
-                             dm_mean=dm_mean,
-                             vector_size=vector_size,
-                             window=window,
-                             negative=negative,
-                             hs=hs,
-                             min_count=min_count,
-                             workers=cores)
+        self._model = Doc2Vec(dm=dm,
+                              dm_mean=dm_mean,
+                              vector_size=vector_size,
+                              window=window,
+                              negative=negative,
+                              hs=hs,
+                              min_count=min_count,
+                              workers=cores)
 
-        self.model.build_vocab(self.docs)
+        self._model.build_vocab(self._docs)
 
         # Train model
-        self.model.train(self.docs,
-                         total_examples=len(self.docs),
-                         epochs=epochs,
-                         start_alpha=start_alpha,
-                         end_alpha=end_alpha)
+        self._model.train(self._docs,
+                          total_examples=len(self._docs),
+                          epochs=epochs,
+                          start_alpha=start_alpha,
+                          end_alpha=end_alpha)
 
         end = time.clock()
-        message = "Trained doc2vec model in " + str(end - start) + " seconds"
-        self.logger.info(message)
+        message = "Trained encoder model in " + str(end - start) + " seconds"
+        self._logger.info(message)
 
     def set_documents(self, docs):
         """
@@ -113,7 +113,7 @@ class Encoder:
         :param docs: the documents.
         :return: None.
         """
-        self.docs = docs
+        self._docs = docs
 
     def load_documents(self, path_to_documents):
         """
@@ -131,7 +131,7 @@ class Encoder:
                 docs.append(TrainingDocument(words, tags))
                 processed_doc_count += 1
                 if processed_doc_count % 100000 == 0:
-                    self.logger.info("Loaded " + str(processed_doc_count) + " documents")
+                    self._logger.info("Loaded " + str(processed_doc_count) + " documents")
 
         return docs
 
@@ -143,7 +143,7 @@ class Encoder:
         """
         most_similar = ""
         most_similar_distance = 999  # TODO
-        for values, vector in self.document_vectors.items():
+        for values, vector in self._document_vectors.items():
             distance = spatial.distance.cosine(query, vector)
             if distance < most_similar_distance:
                 most_similar = values
@@ -170,7 +170,7 @@ class Encoder:
         return encoder_id
 
     def get_id(self):
-        return self.id
+        return self._id
 
     def get_word_vectors(self):
-        return self.model.wv
+        return self._model.wv
