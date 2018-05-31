@@ -13,7 +13,7 @@ logger.addHandler(stream_handler)
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "resources/encoder_training_docs/full_1_measure_20k.txt"
+    encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     pipeline_params = {
 
@@ -50,11 +50,11 @@ def main():
     data_loader = MidiDataLoader(note_mapper, params=pipeline_params)
 
     # Define training documents for sequence learning
-    training_docs = ["resources/breakbeats/084 Breakthru.mid", "resources/breakbeats/086 Clouds.mid",
-                     "resources/breakbeats/089 Get Out.mid", "resources/breakbeats/089 Wrong.mid",
-                     "resources/breakbeats/090 Deceive.mid", "resources/breakbeats/090 New York.mid",
-                     "resources/breakbeats/090 Radio.mid", "resources/breakbeats/093 Pretender.mid",
-                     "resources/breakbeats/093 Right Won.mid", "resources/breakbeats/094 Run.mid"]
+    training_docs = ["../resources/breakbeats/084 Breakthru.mid", "../resources/breakbeats/086 Clouds.mid",
+                     "../resources/breakbeats/089 Get Out.mid", "../resources/breakbeats/089 Wrong.mid",
+                     "../resources/breakbeats/090 Deceive.mid", "../resources/breakbeats/090 New York.mid",
+                     "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
+                     "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
 
     pipeline = Pipeline(params=pipeline_params)
     pipeline.set_data_loader(data_loader)

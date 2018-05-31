@@ -14,7 +14,7 @@ logger.addHandler(stream_handler)
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "resources/encoder_training_docs/full_1_measure_20k.txt"
+    encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     param_sweep_values = {
 
@@ -28,19 +28,19 @@ def main():
         'doc2vec_learning_rate_end': [0.2],
         'doc2vec_min_count': [5],
         'doc2vec_negative': [0],
-        'doc2vec_vector_size': [4, 8],
-        'doc2vec_window': [1],
+        'doc2vec_vector_size': [20],
+        'doc2vec_window': [1, 2, 3],
 
         # Sequence learning (Keras LSTM) settings:
         'nn_features': [['bpm', 'measure', 'beat']],
-        'nn_batch_size': [100],
+        'nn_batch_size': [50, 100],
         'nn_dense_activation_function': ["linear"],
-        'nn_dropout': [0.05],
-        'nn_epochs': [5],
-        'nn_hidden_neurons': [10],
-        'nn_layers': [10],
+        'nn_dropout': [0, 0.05],
+        'nn_epochs': [10, 20, 50],
+        'nn_hidden_neurons': [10, 20],
+        'nn_layers': [10, 20],
         'nn_lstm_activation_function': ["selu"],
-        'nn_lstm_n_prev': [4, 8]
+        'nn_lstm_n_prev': [16, 32]
     }
 
     # Define note mapper for MIDI file loading
@@ -51,11 +51,11 @@ def main():
     data_loader = MidiDataLoader(note_mapper)
 
     # Define training documents for sequence learning
-    training_docs = ["resources/breakbeats/084 Breakthru.mid", "resources/breakbeats/086 Clouds.mid",
-                     "resources/breakbeats/089 Get Out.mid", "resources/breakbeats/089 Wrong.mid",
-                     "resources/breakbeats/090 Deceive.mid", "resources/breakbeats/090 New York.mid",
-                     "resources/breakbeats/090 Radio.mid", "resources/breakbeats/093 Pretender.mid",
-                     "resources/breakbeats/093 Right Won.mid", "resources/breakbeats/094 Run.mid"]
+    training_docs = ["../resources/breakbeats/084 Breakthru.mid", "../resources/breakbeats/086 Clouds.mid",
+                     "../resources/breakbeats/089 Get Out.mid", "../resources/breakbeats/089 Wrong.mid",
+                     "../resources/breakbeats/090 Deceive.mid", "../resources/breakbeats/090 New York.mid",
+                     "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
+                     "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
 
     pipeline = Pipeline()
     pipeline.set_data_loader(data_loader)

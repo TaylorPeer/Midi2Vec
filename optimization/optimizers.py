@@ -41,13 +41,15 @@ class BruteForce(Optimizer):
         values = [[(key, value) for value in values] for (key, values) in sorted(params.items())]
         self._combinations = list(itertools.product(*values))
 
+        self._logger.info("BruteForce evaluation of " + str(len(self._combinations)) + " hyperparameter combinations.")
+
         # Randomize order
         shuffle(self._combinations)
 
     def get_next_params(self):
         if len(self._combinations) > 0:
             params = dict(self._combinations.pop(0))
-            self._logger.info("Returning next set of hyperparameters: " + str(params))
+            self._logger.debug("Returning next set of hyperparameters: " + str(params))
             return params
         return None
 
@@ -60,7 +62,4 @@ class BruteForce(Optimizer):
         """
         callback = self.get_callback()
         if callback is not None:
-            print("calling callback!")
             callback(params=params, metrics=metrics)
-        else:
-            print("callback was None!")

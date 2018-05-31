@@ -196,13 +196,14 @@ class Pipeline:
         (x_test, y_test) = test_data
 
         # Train sequence learning model
-        model = SequenceLearner.train_model(params, training_data)
+        sequence_model = SequenceLearner()
+        sequence_model.train(params, training_data)
 
         # Apply trained model to test set
-        predicted = model.predict(x_test)
+        predicted = sequence_model.predict(x_test)
 
         # TODO: this shouldn't be necessary...
-        SequenceLearner.clear_session()
+        sequence_model.clear_session()
 
         # Evaluate accuracy of model on test set
         # TODO type of evaluator probably depends on data

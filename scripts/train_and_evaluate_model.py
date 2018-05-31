@@ -15,7 +15,7 @@ logger.addHandler(stream_handler)
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "resources/encoder_training_docs/full_1_measure_20k.txt"
+    encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     model_params = {
 
@@ -55,11 +55,11 @@ def main():
     note_mapper = NoteMapper(note_mapping_config_path)
 
     # Define training documents for sequence learning
-    training_docs = ["/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training"]
+    training_docs = ["/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training"] # TODO paths...
 
     # Define evaluation documents for sequence learning
     evaluation_docs = []
-    evaluation_docs.append("/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/test")
+    evaluation_docs.append("/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/test") # TODO paths...
 
     # Load training MIDI files using MidiDataLoader
     data_loader = MidiDataLoader(note_mapper, params=model_params, encoder=encoder)
@@ -70,10 +70,11 @@ def main():
     (x_test, y_test) = test_data
 
     # Train sequence learning model
-    model = SequenceLearner.train_model(model_params, training_data)
+    sequence_model = SequenceLearner()
+    sequence_model.train(model_params, training_data)
 
     # Apply trained model to test set
-    predicted = model.predict(x_test)
+    predicted = sequence_model.predict(x_test)
 
     # Evaluate accuracy of model on test set
     evaluator = Evaluator()
