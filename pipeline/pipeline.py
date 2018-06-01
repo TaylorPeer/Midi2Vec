@@ -219,10 +219,10 @@ class Pipeline:
         y_test = scaler.inverse_transform(y_test)
 
         # Convert predicted vectors to sequence of text values
-        predicted_values = encoder.convert_vectors_to_text(predicted)
+        predicted_values = encoder.convert_feature_vectors_to_text(predicted)
 
         # Convert actual vectors to sequence of text values
-        actual_values = encoder.convert_vectors_to_text(y_test)
+        actual_values = encoder.convert_feature_vectors_to_text(y_test)
 
         # Compute accuracy by measuring precision/recall of predicted vs. actual values at every timestamp of evaluation
         (precision, recall, f1) = evaluator.compute_seq_accuracy(predicted_values, actual_values)

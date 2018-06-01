@@ -10,6 +10,7 @@ import time
 import multiprocessing
 
 TrainingDocument = namedtuple('TrainingDocument', 'words tags')
+MAX_COSINE_DISTANCE = 2
 
 
 class Encoder:
@@ -43,22 +44,31 @@ class Encoder:
 
         return vector
 
-    def convert_vectors_to_text(self, vectors):
+    def convert_feature_vectors_to_text(self, vectors):
         """
-        Convert vectors into their corresponding textual representations.
+        Converts feature vectors into their corresponding textual representations.
         :param vectors: the vectors to convert to text.
         :return: a list of text representations corresponding to the input vectors.
         """
-        # Skip first n features, which are not part of doc2vec vector
-        # TODO handle this outside of this method
+        # Skip first n features, which are not part of document vector
         index = len(self._params['nn_features'])
 
         values = []
         for vector in vectors:
-            # Lookup most similar vector encountered in training set
             values.append(self._get_most_similar_vector(vector[index:]))
 
         return values
+
+    def convert_feature_vector_to_text(self, vector):
+        """
+        Converts feature vector into a corresponding textual representation.
+        :param vector: the vector to convert to text.
+        :return: text representation corresponding to the input vector.
+        """
+        # Skip first n features, which are not part of document vector
+        index = len(self._params['nn_features'])
+
+        return self._get_most_similar_vector(vector[index:])
 
     def train(self):
         """
@@ -142,13 +152,12 @@ class Encoder:
         :return: the most similar vector in the cache.
         """
         most_similar = ""
-        most_similar_distance = 999  # TODO
+        most_similar_distance = MAX_COSINE_DISTANCE
         for values, vector in self._document_vectors.items():
             distance = spatial.distance.cosine(query, vector)
             if distance < most_similar_distance:
                 most_similar = values
                 most_similar_distance = distance
-
         return most_similar
 
     @staticmethod
@@ -158,7 +167,6 @@ class Encoder:
         :param params: a dictionary containing the model parameters.
         :return: the encoder ID.
         """
-
         # Get the doc2vec model parameters
         # (exclude the doc2vec_docs tuple, since this is handled separately )
         encoder_params = dict(

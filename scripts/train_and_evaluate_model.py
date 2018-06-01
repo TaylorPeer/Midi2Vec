@@ -86,10 +86,10 @@ def main():
     y_test = scaler.inverse_transform(y_test)
 
     # Convert predicted vectors to note sequence
-    predicted_notes = encoder.convert_vectors_to_text(predicted)
+    predicted_notes = encoder.convert_feature_vectors_to_text(predicted)
 
     # Convert actual vectors to note sequence
-    actual_notes = encoder.convert_vectors_to_text(y_test)
+    actual_notes = encoder.convert_feature_vectors_to_text(y_test)
 
     # Compute accuracy by measuring precision/recall of predicted vs. actual notes at every timestamp of evaluation
     (precision, recall, f1) = evaluator.compute_seq_accuracy(predicted_notes, actual_notes)

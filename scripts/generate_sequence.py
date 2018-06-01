@@ -1,6 +1,5 @@
 import sys
 import logging
-import random
 from encoding.encoder import Encoder
 from sequence_learning.sequence_learner import SequenceLearner
 from data_loading.data_loaders import MidiDataLoader
@@ -12,11 +11,13 @@ logger.level = logging.INFO
 stream_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(stream_handler)
 
+logging.getLogger("gensim").setLevel(logging.WARNING)
+
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "../../midi-embeddings/data/full_1_measure.txt"
-    #encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
+    # encoder_training_docs = "../../midi-embeddings/data/full_1_measure.txt"
+    encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     model_params = {
 
@@ -24,25 +25,25 @@ def main():
         'encoder_training_docs': encoder_training_docs,
         'doc2vec_dm': 1,
         'doc2vec_dm_mean': 1,
-        'doc2vec_epochs': 1,
+        'doc2vec_epochs': 2,
         'doc2vec_hs': 0,
         'doc2vec_learning_rate_start': 0.025,
         'doc2vec_learning_rate_end': 0.2,
-        'doc2vec_min_count': 5,
+        'doc2vec_min_count': 10,
         'doc2vec_negative': 0,
-        'doc2vec_vector_size': 24,
-        'doc2vec_window': 3,
+        'doc2vec_vector_size': 4,  # 24,
+        'doc2vec_window': 1,  # 3,
 
         # Sequence learning (Keras LSTM) settings:
         'nn_features': ['bpm', 'measure', 'beat'],
-        'nn_batch_size': 50,
+        'nn_batch_size': 100,  # 25,
         'nn_dense_activation_function': "linear",
         'nn_dropout': 0,
-        'nn_epochs': 20,
-        'nn_hidden_neurons': 20,
-        'nn_layers': 20,
+        'nn_epochs': 5,  # 50,
+        'nn_hidden_neurons': 5,  # 30,
+        'nn_layers': 5,  # 15,
         'nn_lstm_activation_function': "selu",
-        'nn_lstm_n_prev': 16
+        'nn_lstm_n_prev': 4  # 16
     }
 
     # Train encoder
@@ -72,16 +73,16 @@ def main():
                       "../resources/breakbeats/090 Deceive.mid", "../resources/breakbeats/090 New York.mid",
                       "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
                       "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
-    seed_sequence_path = random.choice(seed_sequences)
 
-    dataframes = data_loader.load_data(seed_sequence_path, fit_scaler=False, return_df=True)
-    seed_df = dataframes[0]
+    for seed in seed_sequences:
+        dataframes = data_loader.load_data(seed, fit_scaler=False, return_df=True)
+        seed_df = dataframes[0]
+        # Generate new sequence
+        length = 32
+        generated_seq_df = sequence_model.generate_sequence(seed_df, data_loader, length)
+        print("---")
 
-    # Generate new sequence
-    length = 100
-    generated_seq_df = sequence_model.generate_sequence(seed_df, data_loader, length)
-
-    print(generated_seq_df.to_string())
+        print(generated_seq_df.to_string())
 
 
 if __name__ == '__main__':

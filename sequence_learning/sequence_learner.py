@@ -74,14 +74,14 @@ class SequenceLearner:
 
         scaler = data_loader.get_scaler()
         if scaler is None:
-            print("what do?")
+            print("what do?")  # TODO
             return
 
+        # Apply preprocessing to seed Data Frame
         pattern_df_scaled = pd.DataFrame(scaler.transform(seed_df), columns=seed_df.columns)
         (seed_x, _) = data_loader.frame_as_sequential(pattern_df_scaled, self._params['nn_lstm_n_prev'])
 
-        predicted_df_rows = []
-
+        generated_rows = []
         for step in range(length):
             # Predict step
             prediction = self._model.predict(seed_x, verbose=0)
@@ -91,9 +91,6 @@ class SequenceLearner:
             predicted_vector = {}
             for index, column in enumerate(pattern_df_scaled):
                 predicted_vector[column] = prediction[index]
-
-            # Record predicted vector
-            predicted_df_rows.append(predicted_vector)
 
             # Append prediction to seed sequence and remove oldest step in seed sequence
             pattern_df_scaled = pd.concat([pattern_df_scaled, pd.DataFrame(predicted_vector, index=[0])])
@@ -105,14 +102,25 @@ class SequenceLearner:
             predicted_df = pd.DataFrame(scaler.inverse_transform(predicted_df), columns=predicted_df.columns)
             predicted_vector = np.array(predicted_df.loc[0])
 
+            # Create intermediary dictionary to hold generated row (features and textual values)
+            row_dict = {}
+            features = self._params['nn_features']
+            predicted_features = predicted_vector[:len(features)]
+            for index, _ in enumerate(features):
+                row_dict[features[index]] = predicted_features[index]
+
             # Lookup most similar vector encountered in training set
             encoder = data_loader.get_encoder()
-            values = encoder.convert_vectors_to_text([predicted_vector])
-            print(values)
+            predicted_values = encoder.convert_feature_vector_to_text(predicted_vector)
+            row_dict['notes'] = predicted_values
 
+            # Record predicted vector
+            generated_rows.append(row_dict)
+
+            # Re-run preprocessing on updated seed data frame
             (seed_x, _) = data_loader.frame_as_sequential(pattern_df_scaled, self._params['nn_lstm_n_prev'])
 
-        return pd.DataFrame(predicted_df_rows)
+        return pd.DataFrame(generated_rows)
 
     @staticmethod
     def clear_session():

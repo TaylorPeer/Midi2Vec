@@ -41,7 +41,7 @@ class BruteForce(Optimizer):
         values = [[(key, value) for value in values] for (key, values) in sorted(params.items())]
         self._combinations = list(itertools.product(*values))
 
-        self._logger.info("BruteForce evaluation of " + str(len(self._combinations)) + " hyperparameter combinations.")
+        self._logger.info("Brute-force evaluation of " + str(len(self._combinations)) + " hyperparameter combinations.")
 
         # Randomize order
         shuffle(self._combinations)

@@ -101,21 +101,14 @@ class MidiDataLoader(DataLoader):
         # Ensure encoder was set
         if self._encoder is None:
             self._logger.error("Unable to load data: encoder was not specified.")
+            # TODO: handle return_df=True
             return np.vstack([]), np.vstack([])
 
         # Collect all MIDI files found in given data_source path
         files_to_load = self._collect_files_to_load(data_source)
 
         # Convert all MIDI files to Data Frames
-        dataframes = []
-        for midi_file in files_to_load:
-            if midi_file in self._df_cache:
-                df = self._df_cache[midi_file]
-                self._logger.debug("Loaded MIDI DF from cache for file: " + str(midi_file))
-            else:
-                df = self._load_midi_file(midi_file)
-                self._df_cache[midi_file] = df
-            dataframes.append(df)
+        dataframes = self._load_files_as_dataframes(files_to_load)
 
         # Fit scaler to values (if configured)
         if fit_scaler:
@@ -137,12 +130,13 @@ class MidiDataLoader(DataLoader):
             if scaler is not None:
                 df = pd.DataFrame(scaler.transform(df), columns=df.columns)
 
-            (x_data, y_data) = self.frame_as_sequential(df, self._params['nn_lstm_n_prev'])
+            if not return_df:
+                (x_data, y_data) = self.frame_as_sequential(df, self._params['nn_lstm_n_prev'])
 
-            # Append to data to return
-            if not return_df and len(x_data) > 0 and len(y_data) > 0:
-                x_data_full.append(x_data)
-                y_data_full.append(y_data)
+                # Append to data to return
+                if len(x_data) > 0 and len(y_data) > 0:
+                    x_data_full.append(x_data)
+                    y_data_full.append(y_data)
 
         if return_df:
             return dataframes
@@ -210,6 +204,24 @@ class MidiDataLoader(DataLoader):
                 files_to_load += self._process_data_source(source)
 
         return files_to_load
+
+    def _load_files_as_dataframes(self, files_to_load):
+        """
+        TODO
+        :param files_to_load:
+        :return:
+        """
+        dataframes = []
+        for midi_file in files_to_load:
+            encoder_id = self.get_encoder().get_id()
+            if (encoder_id, midi_file) in self._df_cache:
+                df = self._df_cache[(encoder_id, midi_file)]
+                self._logger.debug("Loaded MIDI DF from cache for file: " + str(midi_file))
+            else:
+                df = self._load_midi_file(midi_file)
+                self._df_cache[(encoder_id, midi_file)] = df
+            dataframes.append(df)
+        return dataframes
 
     def _process_data_source(self, data_source):
         """
