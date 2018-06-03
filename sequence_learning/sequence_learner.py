@@ -6,44 +6,64 @@ from keras.layers import Dropout
 from keras.layers.recurrent import LSTM
 from keras.layers.core import Dense, Activation
 from keras import backend as K
-from keras.optimizers import Adam
+from keras.models import load_model
 
 
 class SequenceLearner:
     """
-    Sequence learning module.
+    Sequence learning object.
     """
 
-    def __init__(self):
+    def __init__(self, params):
         self._logger = logging.getLogger(__name__)
         self._model = None
-        self._params = None
+        self._params = params
 
-    def train(self, params, training_data):
+    def save(self, save_to_path):
+        """
+        Saves the (trained) Keras model.
+        :param save_to_path: the path where the model should be stored.
+        :return: None.
+        """
+        if self._model is None:
+            self._logger.error("SequenceLearner could not be saved because it is null.")
+        else:
+            self._model.save(save_to_path)
+            self._logger.info("SequenceLearner saved to: " + str(save_to_path))
+
+    def load(self, path_to_stored_model):
+        """
+        Loads a (trained) Keras model from disk.
+        :param path_to_stored_model: the path to load from.
+        :return: None.
+        """
+        self._model = load_model(path_to_stored_model)
+        self._logger.info("SequenceLearner loaded from: " + str(path_to_stored_model))
+
+    def train(self, training_data):
         """
         Trains a sequence learning model on the given training data.
-        :param params: TODO replace params with individual named parameters
         :param training_data: the training data to use.
         :return: None.
         """
 
-        self._params = params
         (x_train, y_train) = training_data
 
         # Each feature vector is made up of the encoder vector as well as additionally defined custom features
-        num_features = params['doc2vec_vector_size'] + len(params['nn_features'])
+        num_features = self._params['doc2vec_vector_size'] + len(self._params['nn_features'])
 
         # Construct model as configured
         model = self._build_model(num_features=num_features,
-                                  layer_count=params['nn_layers'],
-                                  num_hidden_neurons=params['nn_hidden_neurons'],
-                                  lstm_activation=params['nn_lstm_activation_function'],
-                                  dense_activation=params['nn_dense_activation_function'],
-                                  dropout_rate=params['nn_dropout'])
+                                  layer_count=self._params['nn_layers'],
+                                  num_hidden_neurons=self._params['nn_hidden_neurons'],
+                                  lstm_activation=self._params['nn_lstm_activation_function'],
+                                  dense_activation=self._params['nn_dense_activation_function'],
+                                  dropout_rate=self._params['nn_dropout'])
 
         # Train model
         # TODO "verbose" as configurable parameter (for debuggign)
-        model.fit(x_train, y_train, verbose=0, batch_size=params['nn_batch_size'], epochs=params['nn_epochs'])
+        model.fit(x_train, y_train, verbose=0, batch_size=self._params['nn_batch_size'],
+                  epochs=self._params['nn_epochs'])
         self._model = model
 
     def predict(self, data):
@@ -77,7 +97,7 @@ class SequenceLearner:
             self._logger.error("DataLoader scaler was null. Was it used to load the training data?")
             return pd.DataFrame()
 
-        # Apply preprocessing to seed Data Frame
+        # Apply pre-processing to seed Data Frame
         pattern_df_scaled = pd.DataFrame(scaler.transform(seed_df), columns=seed_df.columns)
         (seed_x, _) = data_loader.frame_as_sequential(pattern_df_scaled, self._params['nn_lstm_n_prev'])
 
@@ -171,7 +191,9 @@ class SequenceLearner:
         model.add(Activation(dense_activation))
 
         # TODO make optimizer configurable
-        optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+        # TODO Adam optimizer seems to be slow
+        # optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 
-        model.compile(loss="cosine_proximity", optimizer=optimizer)  # TODO make loss function configurable
+        # TODO make loss function configurable
+        model.compile(loss="cosine_proximity", optimizer="rmsprop")
         return model

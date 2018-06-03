@@ -72,8 +72,8 @@ def main():
     (x_test, y_test) = test_data
 
     # Train sequence learning model
-    sequence_model = SequenceLearner()
-    sequence_model.train(model_params, training_data)
+    sequence_model = SequenceLearner(model_params)
+    sequence_model.train(training_data)
 
     # Apply trained model to test set
     predicted = sequence_model.predict(x_test)

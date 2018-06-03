@@ -1,5 +1,7 @@
+import os
 import logging
 import time
+import json
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
@@ -17,7 +19,9 @@ class Pipeline:
     def __init__(self, params=None, data_loader=None, training_docs=None, test_docs=None):
         self._logger = logging.getLogger(__name__)
         self._params = params
+        self._encoder = None
         self._data_loader = data_loader
+        self._sequence_learner = None
         self._training_docs = training_docs
         self._test_docs = test_docs
         self._k_folds = 0
@@ -70,7 +74,7 @@ class Pipeline:
             for data_set_index, (training_docs, test_docs) in enumerate(data_sets):
 
                 # Retrieve an encoder module trained with the specified configuration
-                encoder = self._get_encoder(params)
+                self._encoder = self._get_encoder(params)
 
                 data_set_index += 1  # Only used for user output, so start index at 1
 
@@ -79,9 +83,9 @@ class Pipeline:
                     self._logger.info(
                         "Training and evaluating fold " + str(data_set_index) + " of " + str(num_sets) + ".")
 
-                start = time.clock()
-                self._train_and_eval_seq_learning(params, encoder, training_docs, test_docs, current_metrics)
-                end = time.clock()
+                start = time.time()
+                self._train_and_eval_seq_learning(params, self._encoder, training_docs, test_docs, current_metrics)
+                end = time.time()
                 message = "Trained and evaluated fold " + str(data_set_index) + " of sequence model in " + str(
                     end - start) + " seconds."
                 self._logger.info(message)
@@ -90,9 +94,12 @@ class Pipeline:
             result_row = {**params, **current_metrics.get_scores_as_dict()}
             result_rows.append(result_row)
 
-            # Invoke optimizer callback to report back on results of this run
+            # Invoke optimizer callback to report on results of this run
             if self._optimizer is not None:
-                self._optimizer.process_run_result(params=params, metrics=current_metrics.get_scores_as_dict())
+                self._optimizer.process_run_result(params=params,
+                                                   metrics=current_metrics.get_scores_as_dict(),
+                                                   encoder=self._encoder,
+                                                   sequence_learner=self._sequence_learner)
 
             # Check if there are additional runs to execute
             if self._optimizer is not None:
@@ -100,7 +107,39 @@ class Pipeline:
             else:
                 params = None
 
+        self._sequence_learner.clear_session()
+
+        # Store best model, if configured
+        if self._optimizer.is_model_saving_enabled():
+            path, name = self._optimizer.get_model_save_path_and_name()
+            self.save(path, name)
+
+        # Clear Keras/Tensorflow models
+        self._sequence_learner.clear_session()
+
         return pd.DataFrame(result_rows)
+
+    def save(self, directory, name):
+        """
+        TODO
+        :param directory:
+        :param name:
+        :return:
+        """
+
+        _, (params, encoder, sequence_learner) = self._optimizer.get_best_model()
+
+        # Create save dir
+        full_path = directory + "/" + name
+        if not os.path.exists(full_path):
+            os.makedirs(full_path)
+
+        with open(full_path + "/" + "settings.json", 'w') as fp:
+            json.dump(params, fp)
+
+        encoder.save(full_path + "/" + "encoder")
+        sequence_learner.save(full_path + "/" + "seq.h5")
+        self._logger.info("Saved model parameters, encoder and sequence learner to: " + str(full_path))
 
     def _get_params_for_run(self):
         """
@@ -188,7 +227,7 @@ class Pipeline:
 
     def _train_and_eval_seq_learning(self, params, encoder, training_docs, test_docs, metrics):
         """
-        TODO refactor, split into separate functions
+        TODO refactor, split into separate functions (train vs. eval)
         """
         # Load training data with trained encoder
         self._data_loader.set_encoder(encoder)
@@ -200,14 +239,11 @@ class Pipeline:
         (x_test, y_test) = test_data
 
         # Train sequence learning model
-        sequence_model = SequenceLearner()
-        sequence_model.train(params, training_data)
+        self._sequence_learner = SequenceLearner(params)
+        self._sequence_learner.train(training_data)
 
         # Apply trained model to test set
-        predicted = sequence_model.predict(x_test)
-
-        # TODO: this shouldn't be necessary...
-        sequence_model.clear_session()
+        predicted = self._sequence_learner.predict(x_test)
 
         # Evaluate accuracy of model on test set
         # TODO type of evaluator probably depends on data

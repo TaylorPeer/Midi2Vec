@@ -1,7 +1,7 @@
 import sys
 import logging
-from encoding.encoder import Encoder
-from sequence_learning import SequenceLearner
+from encoding import Encoder
+from sequence_learning import SequenceLearner, SequenceGenerator
 from data_loading import MidiDataLoader
 
 from midi_to_dataframe import MidiWriter, NoteMapper
@@ -64,8 +64,8 @@ def main():
     training_data = data_loader.load_data(training_docs)
 
     # Train sequence learning model
-    sequence_model = SequenceLearner()
-    sequence_model.train(model_params, training_data)
+    sequence_model = SequenceLearner(model_params)
+    sequence_model.train(training_data)
 
     # TODO select seed sequence for training
     seed_sequences = ["../resources/breakbeats/084 Breakthru.mid", "../resources/breakbeats/086 Clouds.mid",
@@ -74,12 +74,11 @@ def main():
                       "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
                       "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
 
+    sequence_generator = SequenceGenerator(data_loader, sequence_model)
+    length = 64
+
     for seq_index, seed in enumerate(seed_sequences):
-        dataframes = data_loader.load_data(seed, fit_scaler=False, return_df=True)
-        seed_df = dataframes[0]
-        # Generate new sequence
-        length = 64
-        generated_seq_df = sequence_model.generate_sequence(seed_df, data_loader, length)
+        generated_seq_df = sequence_generator.generate(seed, length)
 
         writer = MidiWriter(note_mapper)
         save_to_path = "test_seq_" + str(seq_index) + ".mid"

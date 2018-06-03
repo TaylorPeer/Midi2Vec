@@ -1,1 +1,2 @@
 from .sequence_learner import SequenceLearner
+from .sequence_generator import SequenceGenerator

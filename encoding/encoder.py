@@ -18,6 +18,7 @@ class Encoder:
     Class for learning vector representations of string values and converting between strings and those vectors.
     """
 
+    # TODO make this configurable
     TOKEN_DELIMITER = ","
 
     def __init__(self, params):
@@ -27,6 +28,27 @@ class Encoder:
         self._docs = []
         self._model = None
         self._document_vectors = {}
+
+    def save(self, save_to_path):
+        """
+        Saves the (trained) Doc2Vec model.
+        :param save_to_path: the path where the model should be stored.
+        :return: None.
+        """
+        if self._model is None:
+            self._logger.error("Encoder could not be saved because it is null.")
+        else:
+            self._model.save(save_to_path)
+            self._logger.info("Encoder saved to: " + str(save_to_path))
+
+    def load(self, path_to_stored_model):
+        """
+        Loads a (trained) Doc2Vec model from disk.
+        :param path_to_stored_model: the path to load from.
+        :return: None.
+        """
+        self._model = Doc2Vec.load(path_to_stored_model)
+        self._logger.info("Encoder loaded from: " + str(path_to_stored_model))
 
     def convert_text_to_vector(self, text):
         """
@@ -92,7 +114,9 @@ class Encoder:
         vector_size = self._params['doc2vec_vector_size']
         window = self._params['doc2vec_window']
 
-        start = time.clock()
+        self._logger.info("Training encoder model...")
+
+        start = time.time()
 
         # Create model
         self._model = Doc2Vec(dm=dm,
@@ -113,7 +137,7 @@ class Encoder:
                           start_alpha=start_alpha,
                           end_alpha=end_alpha)
 
-        end = time.clock()
+        end = time.time()
         message = "Trained encoder model in " + str(end - start) + " seconds"
         self._logger.info(message)
 
