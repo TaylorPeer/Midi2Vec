@@ -6,6 +6,7 @@ from keras.layers import Dropout
 from keras.layers.recurrent import LSTM
 from keras.layers.core import Dense, Activation
 from keras import backend as K
+from keras.optimizers import Adam
 
 
 class SequenceLearner:
@@ -29,35 +30,27 @@ class SequenceLearner:
         self._params = params
         (x_train, y_train) = training_data
 
-        in_out_neurons = params['doc2vec_vector_size'] + len(params['nn_features'])
-        hidden_neurons = params['nn_hidden_neurons']
-        layers = params['nn_layers']
-        return_sequences = True if layers > 1 else False
+        # Each feature vector is made up of the encoder vector as well as additionally defined custom features
+        num_features = params['doc2vec_vector_size'] + len(params['nn_features'])
 
-        model = Sequential()
-        model.add(
-            LSTM(hidden_neurons, activation=params['nn_lstm_activation_function'], return_sequences=return_sequences,
-                 input_shape=(None, in_out_neurons)))
-        model.add(Dropout(params['nn_dropout']))
-        for layer in list(range(1, layers)):
-            return_sequences = True if (layer + 1) < layers else False
-            model.add(LSTM(hidden_neurons, activation=params['nn_lstm_activation_function'],
-                           return_sequences=return_sequences, input_shape=(None, in_out_neurons)))
-            model.add(Dropout(params['nn_dropout']))
-        model.add(Dense(in_out_neurons, input_dim=hidden_neurons))
-        model.add(Activation(params['nn_dense_activation_function']))
-        model.compile(loss="mean_squared_error", optimizer="rmsprop")  # TODO optimizer/loss as parameters
+        # Construct model as configured
+        model = self._build_model(num_features=num_features,
+                                  layer_count=params['nn_layers'],
+                                  num_hidden_neurons=params['nn_hidden_neurons'],
+                                  lstm_activation=params['nn_lstm_activation_function'],
+                                  dense_activation=params['nn_dense_activation_function'],
+                                  dropout_rate=params['nn_dropout'])
 
-        # Build model
-        # TODO "verbose" as parameter
+        # Train model
+        # TODO "verbose" as configurable parameter (for debuggign)
         model.fit(x_train, y_train, verbose=0, batch_size=params['nn_batch_size'], epochs=params['nn_epochs'])
         self._model = model
 
     def predict(self, data):
         """
-        TODO
-        :param data:
-        :return:
+        Predicts the output for an input series.
+        :param data: the input series.
+        :return: the predicted output.
         """
         if self._model is None:
             self._logger.error("Could not make prediction because sequence learning model has not yet been trained.")
@@ -65,17 +58,24 @@ class SequenceLearner:
         return self._model.predict(data)
 
     def generate_sequence(self, seed_df, data_loader, length):
+        """
+        Generates a new sequence of a given length using a sample dataframe of data as seed values.
+        :param seed_df: the Pandas dataframe to use as seed values.
+        :param data_loader: the DataLoader used to load the training data.
+        :param length: the length of the sequence to generate, in discrete steps.
+        :return: the generated sequence (as a Pandas dataframe).
+        """
 
         # TODO make configurable: retain seed sequence as part of generated sequence or not
 
         if self._model is None:
             self._logger.error("Could not generate sequence because sequence learning model has not yet been trained.")
-            return None
+            return pd.DataFrame()
 
         scaler = data_loader.get_scaler()
         if scaler is None:
-            print("what do?")  # TODO
-            return
+            self._logger.error("DataLoader scaler was null. Was it used to load the training data?")
+            return pd.DataFrame()
 
         # Apply preprocessing to seed Data Frame
         pattern_df_scaled = pd.DataFrame(scaler.transform(seed_df), columns=seed_df.columns)
@@ -112,7 +112,7 @@ class SequenceLearner:
             # Lookup most similar vector encountered in training set
             encoder = data_loader.get_encoder()
             predicted_values = encoder.convert_feature_vector_to_text(predicted_vector)
-            row_dict['notes'] = predicted_values
+            row_dict['notes'] = predicted_values  # TODO remove MIDI-specific values ('notes') from this class
 
             # Record predicted vector
             generated_rows.append(row_dict)
@@ -125,3 +125,53 @@ class SequenceLearner:
     @staticmethod
     def clear_session():
         K.clear_session()
+
+    @staticmethod
+    def _build_model(num_features, layer_count, num_hidden_neurons, lstm_activation, dense_activation,
+                     dropout_rate):
+        """
+        Builds a deep neural network with the configured parameters.
+        :param num_features: size of each feature vector.
+        :param layer_count: number of LSTM layers to use.
+        :param num_hidden_neurons: number of hidden neurons per layer.
+        :param lstm_activation: activation function for each LSTM layer.
+        :param dense_activation: activation function for final (dense) layer.
+        :param dropout_rate: dropout rate per layer (TODO make configurable per layer type).
+        :return: the configured model.
+        """
+
+        # Sequences should be returned for multi-layer models
+        return_sequences = True if layer_count > 1 else False
+
+        # Construct sequence learning model
+        model = Sequential()
+        model.add(LSTM(num_hidden_neurons,
+                       activation=lstm_activation,
+                       return_sequences=return_sequences,
+                       input_shape=(None, num_features)))
+
+        if dropout_rate > 0:
+            model.add(Dropout(dropout_rate))
+
+        # Add additional layers as configured
+        for layer in list(range(1, layer_count)):
+            return_sequences = True if (layer + 1) < layer_count else False
+            model.add(LSTM(num_hidden_neurons,
+                           activation=lstm_activation,
+                           return_sequences=return_sequences,
+                           input_shape=(None, num_features)))
+
+            # TODO this dropout rate should be able to be set independently
+            if dropout_rate > 0:
+                model.add(Dropout(dropout_rate))
+
+        # Add final dense layer for output
+        model.add(Dense(num_features, input_dim=num_hidden_neurons))
+        # TODO dropout for final layer
+        model.add(Activation(dense_activation))
+
+        # TODO make optimizer configurable
+        optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+
+        model.compile(loss="cosine_proximity", optimizer=optimizer)  # TODO make loss function configurable
+        return model

@@ -1,4 +1,5 @@
 import logging
+import time
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
@@ -66,10 +67,24 @@ class Pipeline:
             # Get collection of training and test sets for current run
             current_metrics = Metrics()
             data_sets = self._get_training_and_test_sets()
-            for (training_docs, test_docs) in data_sets:
+            for data_set_index, (training_docs, test_docs) in enumerate(data_sets):
+
                 # Retrieve an encoder module trained with the specified configuration
                 encoder = self._get_encoder(params)
+
+                data_set_index += 1  # Only used for user output, so start index at 1
+
+                num_sets = len(data_sets)
+                if num_sets > 1:
+                    self._logger.info(
+                        "Training and evaluating fold " + str(data_set_index) + " of " + str(num_sets) + ".")
+
+                start = time.clock()
                 self._train_and_eval_seq_learning(params, encoder, training_docs, test_docs, current_metrics)
+                end = time.clock()
+                message = "Trained and evaluated fold " + str(data_set_index) + " of sequence model in " + str(
+                    end - start) + " seconds."
+                self._logger.info(message)
 
             # Store evaluation metrics of run
             result_row = {**params, **current_metrics.get_scores_as_dict()}
@@ -173,25 +188,15 @@ class Pipeline:
 
     def _train_and_eval_seq_learning(self, params, encoder, training_docs, test_docs, metrics):
         """
-        TODO
-        :param params:
-        :param encoder:
-        :param training_docs:
-        :param test_docs:
-        :param metrics:
-        :return:
+        TODO refactor, split into separate functions
         """
         # Load training data with trained encoder
         self._data_loader.set_encoder(encoder)
         self._data_loader.set_params(params)
 
-        # TODO check if this set was already loaded with this encoder
+        # Load training and test data, fitting scaler to training and re-using on test
         training_data = self._data_loader.load_data(training_docs)
-
-        # Load test data, re-using scaling used during encoding of training set
-        # TODO check if this set was already loaded with this encoder
         test_data = self._data_loader.load_data(test_docs, fit_scaler=False)
-
         (x_test, y_test) = test_data
 
         # Train sequence learning model
@@ -209,18 +214,16 @@ class Pipeline:
         # TODO pass from outside (like data_loader)
         evaluator = Evaluator()
 
-        # TODO:
-        average_error = evaluator.compute_average_error(predicted, y_test)
+        # TODO: is this metric useful?
+        # average_error = evaluator.compute_average_error(predicted, y_test)
 
         # Un-scale predicted and actual values
         scaler = self._data_loader.get_scaler()
         predicted = scaler.inverse_transform(predicted)
         y_test = scaler.inverse_transform(y_test)
 
-        # Convert predicted vectors to sequence of text values
+        # Convert actual and predicted vectors to sequence of text values
         predicted_values = encoder.convert_feature_vectors_to_text(predicted)
-
-        # Convert actual vectors to sequence of text values
         actual_values = encoder.convert_feature_vectors_to_text(y_test)
 
         # Compute accuracy by measuring precision/recall of predicted vs. actual values at every timestamp of evaluation
