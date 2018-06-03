@@ -1,10 +1,10 @@
 import sys
 import logging
 from encoding.encoder import Encoder
-from sequence_learning.sequence_learner import SequenceLearner
-from data_loading.data_loaders import MidiDataLoader
+from sequence_learning import SequenceLearner
+from data_loading import MidiDataLoader
 
-from midi_to_dataframe.note_mapper import NoteMapper
+from midi_to_dataframe import MidiWriter, NoteMapper
 
 logger = logging.getLogger()
 logger.level = logging.INFO
@@ -16,8 +16,8 @@ logging.getLogger("gensim").setLevel(logging.WARNING)
 
 def main():
     # Documents used to train semantic encoder model
-    # encoder_training_docs = "../../midi-embeddings/data/full_1_measure.txt"
-    encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
+    encoder_training_docs = "../../midi-embeddings/data/full_1_measure.txt"
+    # encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     model_params = {
 
@@ -31,19 +31,19 @@ def main():
         'doc2vec_learning_rate_end': 0.2,
         'doc2vec_min_count': 10,
         'doc2vec_negative': 0,
-        'doc2vec_vector_size': 4,  # 24,
-        'doc2vec_window': 1,  # 3,
+        'doc2vec_vector_size': 20,  # 24,
+        'doc2vec_window': 10,  # 3,
 
         # Sequence learning (Keras LSTM) settings:
         'nn_features': ['bpm', 'measure', 'beat'],
-        'nn_batch_size': 100,  # 25,
+        'nn_batch_size': 15,
         'nn_dense_activation_function': "linear",
-        'nn_dropout': 0,
-        'nn_epochs': 5,  # 50,
-        'nn_hidden_neurons': 5,  # 30,
-        'nn_layers': 5,  # 15,
+        'nn_dropout': 0.1,
+        'nn_epochs': 75,
+        'nn_hidden_neurons': 30,  # 30,
+        'nn_layers': 20,  # 15,
         'nn_lstm_activation_function': "selu",
-        'nn_lstm_n_prev': 4  # 16
+        'nn_lstm_n_prev': 16
     }
 
     # Train encoder
@@ -74,12 +74,16 @@ def main():
                       "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
                       "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
 
-    for seed in seed_sequences:
+    for seq_index, seed in enumerate(seed_sequences):
         dataframes = data_loader.load_data(seed, fit_scaler=False, return_df=True)
         seed_df = dataframes[0]
         # Generate new sequence
-        length = 32
+        length = 64
         generated_seq_df = sequence_model.generate_sequence(seed_df, data_loader, length)
+
+        writer = MidiWriter(note_mapper)
+        save_to_path = "test_seq_" + str(seq_index) + ".mid"
+        writer.convert_to_midi(generated_seq_df, save_to_path)
         print("---")
 
         print(generated_seq_df.to_string())

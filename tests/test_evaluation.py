@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from collections import namedtuple
-from evaluation.evaluator import Evaluator
+from evaluation import Evaluator
 
 
 class EvaluatorTests(unittest.TestCase):

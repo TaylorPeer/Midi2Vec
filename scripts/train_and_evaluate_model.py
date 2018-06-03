@@ -1,11 +1,11 @@
 import sys
 import logging
-from encoding.encoder import Encoder
-from evaluation.evaluator import Evaluator
-from sequence_learning.sequence_learner import SequenceLearner
-from data_loading.data_loaders import MidiDataLoader
+from encoding import Encoder
+from evaluation import Evaluator
+from sequence_learning import SequenceLearner
+from data_loading import MidiDataLoader
 
-from midi_to_dataframe.note_mapper import NoteMapper
+from midi_to_dataframe import NoteMapper
 
 logger = logging.getLogger()
 logger.level = logging.INFO
@@ -55,11 +55,13 @@ def main():
     note_mapper = NoteMapper(note_mapping_config_path)
 
     # Define training documents for sequence learning
-    training_docs = ["/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training"] # TODO paths...
+    training_docs = [
+        "/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/training"]  # TODO paths...
 
     # Define evaluation documents for sequence learning
     evaluation_docs = []
-    evaluation_docs.append("/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/test") # TODO paths...
+    evaluation_docs.append(
+        "/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/test/test")  # TODO paths...
 
     # Load training MIDI files using MidiDataLoader
     data_loader = MidiDataLoader(note_mapper, params=model_params, encoder=encoder)

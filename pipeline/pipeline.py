@@ -3,10 +3,9 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
 
-from encoding.encoder import Encoder
-from evaluation.evaluator import Evaluator
+from encoding import Encoder
+from evaluation import Evaluator, Metrics
 from sequence_learning.sequence_learner import SequenceLearner
-from evaluation.evaluator import Metrics
 
 
 class Pipeline:
