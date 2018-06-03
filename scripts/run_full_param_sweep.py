@@ -1,10 +1,10 @@
 import sys
 import logging
 
-from data_loading.data_loaders import MidiDataLoader
-from midi_to_dataframe.note_mapper import NoteMapper
-from pipeline.pipeline import Pipeline
-from optimization.optimizers import BruteForce
+from data_loading import MidiDataLoader
+from midi_to_dataframe import NoteMapper
+from pipeline import Pipeline
+from optimization import BruteForce
 
 logger = logging.getLogger()
 logger.level = logging.INFO

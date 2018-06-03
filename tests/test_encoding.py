@@ -2,7 +2,7 @@ import sys
 import logging
 import unittest
 import random
-from encoding.encoder import Encoder
+from encoding import Encoder
 
 logger = logging.getLogger()
 logger.level = logging.INFO

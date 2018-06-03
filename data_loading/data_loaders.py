@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import MinMaxScaler
-from midi_to_dataframe.midi_reader import MidiReader
+from midi_to_dataframe import MidiReader
 
 
 class DataLoader(ABC):

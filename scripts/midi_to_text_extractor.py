@@ -1,8 +1,7 @@
 import os
 import logging
 
-from midi_to_dataframe.note_mapper import NoteMapper
-from midi_to_dataframe.midi_reader import MidiReader, NoteLength
+from midi_to_dataframe import NoteMapper, MidiReader
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,7 +30,6 @@ def process_directory(midi_directory, note_mapping_config_path, output_file_name
 
                 try:
                     midi_reader = MidiReader(note_mapper)
-                    midi_reader.set_timing_quantization(NoteLength.QUARTER)
                     df = midi_reader.convert_to_dataframe(path)
 
                     grouped = df.groupby('measure')['notes'].apply(','.join)
