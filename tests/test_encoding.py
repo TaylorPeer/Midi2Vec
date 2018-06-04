@@ -29,6 +29,8 @@ class EncoderTests(unittest.TestCase):
 
         # Train encoder
         encoder = Encoder(test_model_params)
+        print(encoder.generate_id(test_model_params))
+        pass
         docs = encoder.load_documents("resources/encoding/test_docs.line")
         encoder.set_documents(docs)
         encoder.train()

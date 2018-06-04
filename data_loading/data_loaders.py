@@ -131,6 +131,8 @@ class MidiDataLoader(DataLoader):
                 df = pd.DataFrame(scaler.transform(df), columns=df.columns)
 
             if not return_df:
+
+                # Transform data into sequences of equal length for training
                 (x_data, y_data) = self.frame_as_sequential(df, self._params['nn_lstm_n_prev'])
 
                 # Append to data to return
@@ -143,6 +145,8 @@ class MidiDataLoader(DataLoader):
 
         x_stacked = np.vstack(x_data_full)
         y_stacked = np.vstack(y_data_full)
+
+        # TODO investigate dimensions of x_data_full
 
         return x_stacked, y_stacked
 
@@ -211,6 +215,7 @@ class MidiDataLoader(DataLoader):
         :param files_to_load:
         :return:
         """
+        # TODO cache is only valid for same nn_features!
         dataframes = []
         for midi_file in files_to_load:
             encoder_id = self.get_encoder().get_id()

@@ -16,8 +16,8 @@ logging.getLogger("gensim").setLevel(logging.WARNING)
 
 def main():
     # Documents used to train semantic encoder model
-    encoder_training_docs = "../../midi-embeddings/data/full_1_measure.txt"
-    # encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
+    #encoder_training_docs = "../../midi-embeddings/data/full_1_measure.txt"
+    encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     model_params = {
 
@@ -57,7 +57,7 @@ def main():
     note_mapper = NoteMapper(note_mapping_config_path)
 
     # Define training documents for sequence learning
-    training_docs = ["../resources/breakbeats"]
+    training_docs = ["../resources/midi/breakbeats"]
 
     # Load training MIDI files using MidiDataLoader
     data_loader = MidiDataLoader(note_mapper, params=model_params, encoder=encoder)
@@ -68,11 +68,16 @@ def main():
     sequence_model.train(training_data)
 
     # TODO select seed sequence for training
-    seed_sequences = ["../resources/breakbeats/084 Breakthru.mid", "../resources/breakbeats/086 Clouds.mid",
-                      "../resources/breakbeats/089 Get Out.mid", "../resources/breakbeats/089 Wrong.mid",
-                      "../resources/breakbeats/090 Deceive.mid", "../resources/breakbeats/090 New York.mid",
-                      "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
-                      "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
+    seed_sequences = ["../resources/midi/breakbeats/084 Breakthru.mid",
+                      "../resources/midi/breakbeats/086 Clouds.mid",
+                      "../resources/midi/breakbeats/089 Get Out.mid",
+                      "../resources/midi/breakbeats/089 Wrong.mid",
+                      "../resources/midi/breakbeats/090 Deceive.mid",
+                      "../resources/midi/breakbeats/090 New York.mid",
+                      "../resources/midi/breakbeats/090 Radio.mid",
+                      "../resources/midi/breakbeats/093 Pretender.mid",
+                      "../resources/midi/breakbeats/093 Right Won.mid",
+                      "../resources/midi/breakbeats/094 Run.mid"]
 
     sequence_generator = SequenceGenerator(data_loader, sequence_model)
     length = 64

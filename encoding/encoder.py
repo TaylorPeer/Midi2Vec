@@ -1,13 +1,13 @@
+import re
+import logging
+import time
+import multiprocessing
 import gensim
 import gensim.models.doc2vec
 from gensim.models import Doc2Vec
 
 from scipy import spatial
 from collections import namedtuple
-
-import logging
-import time
-import multiprocessing
 
 TrainingDocument = namedtuple('TrainingDocument', 'words tags')
 MAX_COSINE_DISTANCE = 2
@@ -196,10 +196,20 @@ class Encoder:
         encoder_params = dict(
             (key, value) for key, value in params.items() if key.startswith("doc2vec_") and key != 'doc2vec_docs')
 
+        # TODO doc2vec_docs string should be part of ID
+        # TODO "doc2vec" substring should be removed from key strings
+
         # Create unique ID from parameters
-        encoder_id = frozenset(encoder_params.items())
+        encoder_param_vals = [(Encoder._shorten_param_name(key) + "_" + str(value)) for key, value in encoder_params.items()]
+        encoder_id = '-'.join(sorted(encoder_param_vals))
 
         return encoder_id
+
+    @staticmethod
+    def _shorten_param_name(name):
+        name = re.sub("doc2vec_", "", name)
+        name = re.sub("_", "", name)
+        return name
 
     def get_id(self):
         return self._id

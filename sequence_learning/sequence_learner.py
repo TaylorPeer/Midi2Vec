@@ -1,4 +1,5 @@
 import logging
+import time
 import numpy as np
 import pandas as pd
 from keras.models import Sequential
@@ -7,6 +8,7 @@ from keras.layers.recurrent import LSTM
 from keras.layers.core import Dense, Activation
 from keras import backend as K
 from keras.models import load_model
+from keras import optimizers
 
 
 class SequenceLearner:
@@ -47,6 +49,8 @@ class SequenceLearner:
         :return: None.
         """
 
+        start = time.time()
+
         (x_train, y_train) = training_data
 
         # Each feature vector is made up of the encoder vector as well as additionally defined custom features
@@ -58,12 +62,19 @@ class SequenceLearner:
                                   num_hidden_neurons=self._params['nn_hidden_neurons'],
                                   lstm_activation=self._params['nn_lstm_activation_function'],
                                   dense_activation=self._params['nn_dense_activation_function'],
-                                  dropout_rate=self._params['nn_dropout'])
+                                  dropout_rate=self._params['nn_dropout'],
+                                  loss=self._params['nn_loss'],
+                                  optimizer=self._params['nn_optimizer'])
 
         # Train model
         # TODO "verbose" as configurable parameter (for debuggign)
         model.fit(x_train, y_train, verbose=0, batch_size=self._params['nn_batch_size'],
                   epochs=self._params['nn_epochs'])
+
+        end = time.time()
+        message = "Trained sequence learning model in " + str(end - start) + " seconds"
+        self._logger.info(message)
+
         self._model = model
 
     def predict(self, data):
@@ -148,7 +159,7 @@ class SequenceLearner:
 
     @staticmethod
     def _build_model(num_features, layer_count, num_hidden_neurons, lstm_activation, dense_activation,
-                     dropout_rate):
+                     dropout_rate, loss, optimizer):
         """
         Builds a deep neural network with the configured parameters.
         :param num_features: size of each feature vector.
@@ -170,6 +181,7 @@ class SequenceLearner:
                        return_sequences=return_sequences,
                        input_shape=(None, num_features)))
 
+        # TODO unsure if dropout should be used here
         if dropout_rate > 0:
             model.add(Dropout(dropout_rate))
 
@@ -187,13 +199,33 @@ class SequenceLearner:
 
         # Add final dense layer for output
         model.add(Dense(num_features, input_dim=num_hidden_neurons))
-        # TODO dropout for final layer
+        # TODO dropout for final layer (?)
         model.add(Activation(dense_activation))
 
-        # TODO make optimizer configurable
-        # TODO Adam optimizer seems to be slow
-        # optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-
-        # TODO make loss function configurable
-        model.compile(loss="cosine_proximity", optimizer="rmsprop")
+        model.compile(loss=loss, optimizer=SequenceLearner._get_optimizer(optimizer))
         return model
+
+    @staticmethod
+    def _get_optimizer(name):
+        """
+        TODO
+        :param name:
+        :return:
+        """
+        if name == 'sgd':
+            return optimizers.SGD()
+        if name == 'rmsprop':
+            return optimizers.RMSprop()
+        if name == 'adagrad':
+            return optimizers.Adagrad()
+        if name == 'adadelta':
+            return optimizers.Adadelta()
+        if name == 'adam':
+            return optimizers.Adam()
+        if name == 'adamax':
+            return optimizers.Adamax()
+        if name == 'nadam':
+            return optimizers.Nadam()
+
+        # TODO what if none matched...
+        print("optimizer string was " + str(name))

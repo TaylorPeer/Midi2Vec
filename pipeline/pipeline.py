@@ -33,6 +33,9 @@ class Pipeline:
         # Encoder cache
         self._trained_encoders = {}
 
+        # TODO make configurable
+        self._temp_dir = "temp"
+
     def set_data_loader(self, data_loader):
         self._data_loader = data_loader
 
@@ -53,6 +56,8 @@ class Pipeline:
         Runs the full pipeline as configured.
         :return: list of run parameters and evaluation metrics.
         """
+
+        # TODO try/catch to ensure proper shutdown even if error encountered
 
         params = self._get_params_for_run()
         result_rows = []
@@ -107,12 +112,16 @@ class Pipeline:
             else:
                 params = None
 
-        self._sequence_learner.clear_session()
+        # TODO: self._sequence_learner.clear_session()
 
         # Store best model, if configured
         if self._optimizer.is_model_saving_enabled():
             path, name = self._optimizer.get_model_save_path_and_name()
-            self.save(path, name)
+            try:
+                self.save(path, name)
+            except Exception:
+                self._sequence_learner.clear_session()
+                self.save(path, name)
 
         # Clear Keras/Tensorflow models
         self._sequence_learner.clear_session()
@@ -127,10 +136,12 @@ class Pipeline:
         :return:
         """
 
-        _, (params, encoder, sequence_learner) = self._optimizer.get_best_model()
+        # Get score, round to 2 digits, use as part of save name
+        score, (params, encoder, sequence_learner) = self._optimizer.get_best_model()
+        score = str(round(score, 2))
 
         # Create save dir
-        full_path = directory + "/" + name
+        full_path = directory + "/" + name + "-" + score
         if not os.path.exists(full_path):
             os.makedirs(full_path)
 
@@ -195,6 +206,8 @@ class Pipeline:
 
         # Check if already trained
         if encoder_id in self._trained_encoders:
+            # TODO do not store encoder in memory
+            # TODO save to temp directory and re-load
             self._logger.debug("Loading encoder from cache: " + str(encoder_id))
             return self._trained_encoders[encoder_id]
         else:
@@ -255,8 +268,15 @@ class Pipeline:
 
         # Un-scale predicted and actual values
         scaler = self._data_loader.get_scaler()
-        predicted = scaler.inverse_transform(predicted)
-        y_test = scaler.inverse_transform(y_test)
+
+        try:
+            predicted = scaler.inverse_transform(predicted)
+            y_test = scaler.inverse_transform(y_test)
+        except ValueError:
+            self._logger.error(
+                "Unable to un-scale values. \n\tPredicted: \n" + str(predicted) + "\n\tTest: \n" + str(y_test))
+            metrics.log_run(precision=0, recall=0, f1=0)
+            return
 
         # Convert actual and predicted vectors to sequence of text values
         predicted_values = encoder.convert_feature_vectors_to_text(predicted)
