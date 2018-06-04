@@ -34,6 +34,7 @@ class Pipeline:
         self._trained_encoders = {}
 
         # TODO make configurable
+        # TODO store doc2vec models here, reload as necessary
         self._temp_dir = "temp"
 
     def set_data_loader(self, data_loader):
@@ -112,7 +113,9 @@ class Pipeline:
             else:
                 params = None
 
-        # TODO: self._sequence_learner.clear_session()
+        # Clear Keras/Tensorflow models
+        # (seems to cause a memory leak unless this is called)
+        self._sequence_learner.clear_session()
 
         # Store best model, if configured
         if self._optimizer.is_model_saving_enabled():
@@ -124,6 +127,7 @@ class Pipeline:
                 self.save(path, name)
 
         # Clear Keras/Tensorflow models
+        # TODO again?
         self._sequence_learner.clear_session()
 
         return pd.DataFrame(result_rows)
@@ -257,9 +261,6 @@ class Pipeline:
 
         # Apply trained model to test set
         predicted = self._sequence_learner.predict(x_test)
-
-        # Seems to cause a memory leak unless this is called
-        self._sequence_learner.clear_session()
 
         # Evaluate accuracy of model on test set
         # TODO type of evaluator probably depends on data
