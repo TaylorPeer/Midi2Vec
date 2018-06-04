@@ -19,5 +19,7 @@ class SequenceGenerator:
         :return: generated sequence, in the form of a Pandas dataframe.
         """
         dataframes = self._data_loader.load_data(seed, fit_scaler=False, return_df=True)
+        print(str(len(dataframes)) + " seed sequences passed")
         seed_df = dataframes[0]
+        print(seed_df.head(16).to_string())
         return self._sequence_model.generate_sequence(seed_df, self._data_loader, length)

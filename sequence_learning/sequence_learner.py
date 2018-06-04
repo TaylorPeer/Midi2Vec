@@ -49,33 +49,25 @@ class SequenceLearner:
         :return: None.
         """
 
-        start = time.time()
-
         (x_train, y_train) = training_data
 
         # Each feature vector is made up of the encoder vector as well as additionally defined custom features
         num_features = self._params['doc2vec_vector_size'] + len(self._params['nn_features'])
 
         # Construct model as configured
-        model = self._build_model(num_features=num_features,
-                                  layer_count=self._params['nn_layers'],
-                                  num_hidden_neurons=self._params['nn_hidden_neurons'],
-                                  lstm_activation=self._params['nn_lstm_activation_function'],
-                                  dense_activation=self._params['nn_dense_activation_function'],
-                                  dropout_rate=self._params['nn_dropout'],
-                                  loss=self._params['nn_loss'],
-                                  optimizer=self._params['nn_optimizer'])
+        self._model = self._build_model(num_features=num_features,
+                                        layer_count=self._params['nn_layers'],
+                                        num_hidden_neurons=self._params['nn_hidden_neurons'],
+                                        lstm_activation=self._params['nn_lstm_activation_function'],
+                                        dense_activation=self._params['nn_dense_activation_function'],
+                                        dropout_rate=self._params['nn_dropout'],
+                                        loss=self._params['nn_loss'],
+                                        optimizer=self._params['nn_optimizer'])
 
         # Train model
         # TODO "verbose" as configurable parameter (for debuggign)
-        model.fit(x_train, y_train, verbose=0, batch_size=self._params['nn_batch_size'],
-                  epochs=self._params['nn_epochs'])
-
-        end = time.time()
-        message = "Trained sequence learning model in " + str(end - start) + " seconds"
-        self._logger.info(message)
-
-        self._model = model
+        self._model.fit(x_train, y_train, verbose=0, batch_size=self._params['nn_batch_size'],
+                        epochs=self._params['nn_epochs'])
 
     def predict(self, data):
         """
@@ -90,6 +82,7 @@ class SequenceLearner:
 
     def generate_sequence(self, seed_df, data_loader, length):
         """
+        # TODO move to sequence_generator?
         Generates a new sequence of a given length using a sample dataframe of data as seed values.
         :param seed_df: the Pandas dataframe to use as seed values.
         :param data_loader: the DataLoader used to load the training data.

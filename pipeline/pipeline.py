@@ -258,6 +258,9 @@ class Pipeline:
         # Apply trained model to test set
         predicted = self._sequence_learner.predict(x_test)
 
+        # Seems to cause a memory leak unless this is called
+        self._sequence_learner.clear_session()
+
         # Evaluate accuracy of model on test set
         # TODO type of evaluator probably depends on data
         # TODO pass from outside (like data_loader)
