@@ -4,13 +4,13 @@ import time
 import multiprocessing
 import gensim
 import gensim.models.doc2vec
+from pathlib import Path
 from gensim.models import Doc2Vec
 
 from scipy import spatial
 from collections import namedtuple
 
 TrainingDocument = namedtuple('TrainingDocument', 'words tags')
-MAX_COSINE_DISTANCE = 2
 
 
 class Encoder:
@@ -21,6 +21,8 @@ class Encoder:
     # TODO make this configurable
     TOKEN_DELIMITER = ","
 
+    MAX_COSINE_DISTANCE = 2
+
     def __init__(self, params):
         self._logger = logging.getLogger(__name__)
         self._id = self.generate_id(params)
@@ -28,6 +30,9 @@ class Encoder:
         self._docs = []
         self._model = None
         self._document_vectors = {}
+
+    def set_model(self, model):
+        self._model = model
 
     def save(self, save_to_path):
         """
@@ -49,6 +54,14 @@ class Encoder:
         """
         self._model = Doc2Vec.load(path_to_stored_model)
         self._logger.info("Encoder loaded from: " + str(path_to_stored_model))
+
+    @staticmethod
+    def load_if_exists(path, encoder_id):
+        path_to_check = path + "/" + encoder_id
+        encoder_path = Path(path_to_check)
+        if encoder_path.is_file():
+            return Doc2Vec.load(path_to_check)
+        return None
 
     def convert_text_to_vector(self, text):
         """
@@ -77,7 +90,8 @@ class Encoder:
 
         values = []
         for vector in vectors:
-            values.append(self._get_most_similar_vector(vector[index:]))
+            value = self._get_most_similar_vector(vector[index:])
+            values.append(value)
 
         return values
 
@@ -99,7 +113,7 @@ class Encoder:
         """
         assert gensim.models.doc2vec.FAST_VERSION > -1, "This will be painfully slow otherwise"
 
-        # TODO check if params and docs were set
+        # TODO ensure that params and docs were set
 
         # Model parameters:
         cores = multiprocessing.cpu_count()
@@ -176,7 +190,7 @@ class Encoder:
         :return: the most similar vector in the cache.
         """
         most_similar = ""
-        most_similar_distance = MAX_COSINE_DISTANCE
+        most_similar_distance = self.MAX_COSINE_DISTANCE
         for values, vector in self._document_vectors.items():
             distance = spatial.distance.cosine(query, vector)
             if distance < most_similar_distance:
@@ -197,10 +211,10 @@ class Encoder:
             (key, value) for key, value in params.items() if key.startswith("doc2vec_") and key != 'doc2vec_docs')
 
         # TODO doc2vec_docs string should be part of ID
-        # TODO "doc2vec" substring should be removed from key strings
 
         # Create unique ID from parameters
-        encoder_param_vals = [(Encoder._shorten_param_name(key) + "_" + str(value)) for key, value in encoder_params.items()]
+        encoder_param_vals = [(Encoder._shorten_param_name(key) + "_" + str(value)) for key, value in
+                              encoder_params.items()]
         encoder_id = '-'.join(sorted(encoder_param_vals))
 
         return encoder_id

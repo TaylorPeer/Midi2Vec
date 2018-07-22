@@ -18,8 +18,6 @@ class SequenceGenerator:
         :param length: the length (in steps) of the sequence to generate.
         :return: generated sequence, in the form of a Pandas dataframe.
         """
-        dataframes = self._data_loader.load_data(seed, fit_scaler=False, return_df=True)
-        print(str(len(dataframes)) + " seed sequences passed")
+        dataframes = self._data_loader.load_data_as_df(seed, fit_scaler=False)
         seed_df = dataframes[0]
-        print(seed_df.head(16).to_string())
         return self._sequence_model.generate_sequence(seed_df, self._data_loader, length)

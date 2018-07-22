@@ -10,9 +10,10 @@ class Metrics:
         self._total_precision = 0
         self._total_recall = 0
         self._total_f1 = 0
+        self._total_repetition = 0
         self._runs = 0
 
-    def log_run(self, precision=None, recall=None, f1=None):
+    def log_run(self, precision=None, recall=None, f1=None, repetition=None):
         self._runs += 1
         if precision is not None:
             self._total_precision += precision
@@ -20,6 +21,8 @@ class Metrics:
             self._total_recall += recall
         if f1 is not None:
             self._total_f1 += f1
+        if repetition is not None:
+            self._total_repetition += repetition
 
     def get_precision(self):
         if self._runs == 0:
@@ -36,8 +39,14 @@ class Metrics:
             return 0
         return self._total_f1 / self._runs
 
+    def get_repetition(self):
+        if self._runs == 0:
+            return 0
+        return self._total_repetition / self._runs
+
     def get_scores_as_dict(self):
-        return {"precision": self.get_precision(), "recall": self.get_recall(), "f1": self.get_f1()}
+        return {"precision": self.get_precision(), "recall": self.get_recall(),
+                "f1": self.get_f1(), "repetition": self.get_repetition()}
 
 
 class Evaluator:
@@ -72,8 +81,9 @@ class Evaluator:
             if math.isnan(cos_distance):
                 # Occurs if predicted or actual was an array of 0's
                 # This probably only happens if doc2vec model is undertrained, i.e. some weights were still 0
-                self.logger.warning("Cosine distance between predicted " + str(predicted[index]) + " and test " + str(
-                    actual[index]) + " vectors was NaN")
+                self.logger.warning(
+                    "Cosine distance between predicted " + str(predicted[index]) + " and test " + str(
+                        actual[index]) + " vectors was NaN")
                 cos_distance = 1
 
             yield cos_distance

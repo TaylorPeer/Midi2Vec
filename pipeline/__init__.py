@@ -1,1 +1,2 @@
-from .pipeline import Pipeline
+from .generative_pipeline import GenerativePipeline
+from .classification_pipeline import ClassificationPipeline

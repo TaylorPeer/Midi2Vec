@@ -3,7 +3,7 @@ import logging
 
 from data_loading import MidiDataLoader
 from midi_to_dataframe import NoteMapper
-from pipeline import Pipeline
+from pipeline import GenerativePipeline
 from optimization import BruteForce
 
 logger = logging.getLogger()
@@ -62,13 +62,13 @@ def main():
                      "../resources/midi/breakbeats/093 Right Won.mid",
                      "../resources/midi/breakbeats/094 Run.mid"]
 
-    pipeline = Pipeline()
+    pipeline = GenerativePipeline()
     pipeline.set_data_loader(data_loader)
     pipeline.set_training_docs(training_docs)
     pipeline.set_k_fold_cross_eval(k=5)
+    pipeline.save_best_model("../notebooks/models", "test")
 
     brute_force_param_sweep = BruteForce(params=param_sweep_values)
-    brute_force_param_sweep.save_best_model("../notebooks/models", "test")
     pipeline.set_optimizer(brute_force_param_sweep)
 
     results_df = pipeline.run()

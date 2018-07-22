@@ -1,7 +1,7 @@
 import sys
 import logging
 from encoding import Encoder
-from sequence_learning import SequenceLearner, SequenceGenerator
+from sequence_learning import GenerativeSequenceLearner, SequenceGenerator
 from data_loading import MidiDataLoader
 
 from midi_to_dataframe import MidiWriter, NoteMapper
@@ -22,7 +22,7 @@ def main():
     model_params = {
 
         # Encoder (doc2vec) settings:
-        'encoder_training_docs': encoder_training_docs,
+        'doc2vec_docs': encoder_training_docs,
         'doc2vec_dm': 1,
         'doc2vec_dm_mean': 1,
         'doc2vec_epochs': 2,
@@ -43,12 +43,14 @@ def main():
         'nn_hidden_neurons': 30,  # 30,
         'nn_layers': 20,  # 15,
         'nn_lstm_activation_function': "selu",
-        'nn_lstm_n_prev': 16
+        'nn_lstm_n_prev': 16,
+        'nn_loss': 'mean_absolute_error',
+        'nn_optimizer': 'rmsprop'
     }
 
     # Train encoder
     encoder = Encoder(model_params)
-    docs = encoder.load_documents(model_params['encoder_training_docs'])
+    docs = encoder.load_documents(model_params['doc2vec_docs'])
     encoder.set_documents(docs)
     encoder.train()
 
@@ -61,10 +63,10 @@ def main():
 
     # Load training MIDI files using MidiDataLoader
     data_loader = MidiDataLoader(note_mapper, params=model_params, encoder=encoder)
-    training_data = data_loader.load_data(training_docs)
+    training_data = data_loader.load_data_as_array(training_docs)
 
     # Train sequence learning model
-    sequence_model = SequenceLearner(model_params)
+    sequence_model = GenerativeSequenceLearner(model_params)
     sequence_model.train(training_data)
 
     # TODO select seed sequence for training

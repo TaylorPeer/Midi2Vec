@@ -1,81 +1,20 @@
-import logging
 import os
 import numpy as np
 import pandas as pd
-from abc import ABC, abstractmethod
 from sklearn.preprocessing import MinMaxScaler
 from midi_to_dataframe import MidiReader
 
-
-class DataLoader(ABC):
-
-    def __init__(self, encoder=None):
-        self._logger = logging.getLogger(__name__)
-        self._params = None
-        self._encoder = encoder
-        self._scaler = None
-        self._df_cache = {}
-
-    @abstractmethod
-    def load_data(self, path):
-        pass
-
-    def set_params(self, params):
-        self._params = params
-
-    def get_encoder(self):
-        return self._encoder
-
-    def set_encoder(self, encoder):
-        self._encoder = encoder
-
-    def get_scaler(self):
-        return self._scaler
-
-    def set_scaler(self, scaler):
-        self._scaler = scaler
-
-    @staticmethod
-    def frame_as_sequential(df, n_prev):
-        """
-        Frames a given dataframe as a sequential prediction problem in which the value of each row should be predicted
-        given the previous n_prev rows.
-        :param df: dataframe containing data to reform.
-        :param n_prev: the number of previous rows to take into account when making predictions.
-        :return: x (previous rows) and y (row to predict) mapping of values.
-        """
-        seq_x, seq_y = [], []
-        for i in range(len(df) - n_prev):
-            # Select previous n_prev rows (will be used to predict next)
-            prev_rows = df.iloc[i:i + n_prev]
-            seq_x.append(prev_rows.values)
-
-            # Select row that should be predicted, given n_prev rows
-            row_to_predict = df.iloc[i + n_prev]
-            seq_y.append(row_to_predict.values)
-
-        x_vals = np.array(seq_x)
-        y_vals = np.array(seq_y)
-
-        return x_vals, y_vals
-
-    @staticmethod
-    def find_files_in_path_by_type(path, file_type):
-        """
-        Finds all MIDI files in a directory of a given type/extension.
-        :param path: the directory to retrieve files from.
-        :param file_type: the file extension to filter by.
-        :return: the full paths to all matching files found.
-        """
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if file.lower().endswith(file_type):
-                    yield os.path.join(root, file)
+from data_loading.data_loader import DataLoader
 
 
 class MidiDataLoader(DataLoader):
-    # Name of the column in MIDI dataframes that should be converted to a vector representation by the encoder.
+    """
+    Data loader for MIDI music files.
+    """
+
+    # Name of the column in MIDI dataframes that should be converted to a vector representation
     COL_TO_VECTORIZE = "notes"
+
     MIDI_FILE_EXTENSION = ".mid"
 
     def __init__(self, note_mapper, params=None, encoder=None):
@@ -86,69 +25,110 @@ class MidiDataLoader(DataLoader):
         # Initialize MIDI reader with configured note mapping
         self._reader = MidiReader(self._note_mapper)
 
-    def load_data(self, data_source, fit_scaler=True, return_df=False):
+    def load_data_as_df(self, data_source, fit_scaler=True):
         """
-        Loads and prepares data from the given data source.
+        Loads and prepares data from the given data source, returning arrays of x and y values.
         :param data_source: the data source to load.
         :param fit_scaler: flag indicating whether the internal scaler object should be fit to this data. Use True for
-        training data, False for test/evaluation sets (since the scaler should be previously fit on the corresponding
-        training set.
-        :param return_df: flag indicating if the data should be returned as a Pandas Data Frame (if True) or as a tuple
-        of Numpy arrays (separated by x and y values) (if False) (Default)
-        :return: the dataset, prepared as configured.
+                training data, False for test/evaluation sets (since the scaler should be previously fit on the corresponding
+                training set.
+        :return: arrays of x and y values, prepared as configured.
         """
 
-        # Ensure encoder was set
         if self._encoder is None:
             self._logger.error("Unable to load data: encoder was not specified.")
-            # TODO: handle return_df=True
+            return pd.DataFrame()
+
+        dataframes = self._load_raw_data(data_source)
+        self._apply_scaler(dataframes, fit_scaler)
+
+        return dataframes
+
+    def load_data_as_array(self, data_source, fit_scaler=True, pred_labels=False):
+        """
+        Loads and prepares data from the given data source, returning arrays of x and y values.
+        :param data_source: the data source to load.
+        :param fit_scaler: flag indicating whether the internal scaler object should be fit to this data. Use True for
+                training data, False for test/evaluation sets (since the scaler should be previously fit on the corresponding
+                training set.
+        :param pred_labels: TODO
+        :return: arrays of x and y values, prepared as configured.
+        """
+
+        dataframes = self.load_data_as_df(data_source, fit_scaler)
+        if len(dataframes) == 0:
             return np.vstack([]), np.vstack([])
-
-        # Collect all MIDI files found in given data_source path
-        files_to_load = self._collect_files_to_load(data_source)
-
-        # Convert all MIDI files to Data Frames
-        dataframes = self._load_files_as_dataframes(files_to_load)
-
-        # Fit scaler to values (if configured)
-        if fit_scaler:
-            # Fit to full concatenated set to ensure scaler sees full range of values
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            scaler.fit(pd.concat(dataframes))
-            self.set_scaler(scaler)
-        elif self.get_scaler() is None:
-            self._logger.warning("fit_scaler disabled: scaling will be skipped.")
 
         # Data separated by x and y
         x_data_full = []
         y_data_full = []
 
-        # Apply preprocessing steps to all dataframes
-        for df in dataframes:
+        # Retrieve classification labels from folder structure (if configured)
+        labels = []
+        if pred_labels:
+            files_to_load = self._collect_files_to_load(data_source)
 
-            scaler = self.get_scaler()
-            if scaler is not None:
-                df = pd.DataFrame(scaler.transform(df), columns=df.columns)
+            # Extract label from name of (deepest) directory containing file
+            for file in files_to_load:
+                path = os.path.dirname(os.path.normpath(file))
+                label = os.path.basename(path)
+                labels.append(label)
 
-            if not return_df:
+        # TODO explain whats happening in this loop
+        for index, df in enumerate(dataframes):
 
-                # Transform data into sequences of equal length for training
-                (x_data, y_data) = self.frame_as_sequential(df, self._params['nn_lstm_n_prev'])
+            pred_label = None
+            if pred_labels and len(labels) > 0:
+                pred_label = labels[index]
 
-                # Append to data to return
-                if len(x_data) > 0 and len(y_data) > 0:
-                    x_data_full.append(x_data)
-                    y_data_full.append(y_data)
+            # Transform data into sequences of equal length for training
+            (x_data, y_data) = self.frame_as_sequential(df,
+                                                        n_prev=self._params['nn_lstm_n_prev'],
+                                                        pred_label=pred_label)
 
-        if return_df:
-            return dataframes
+            # Append to data to return
+            if len(x_data) > 0 and len(y_data) > 0:
+                x_data_full.append(x_data)
+                y_data_full.append(y_data)
 
         x_stacked = np.vstack(x_data_full)
         y_stacked = np.vstack(y_data_full)
 
-        # TODO investigate dimensions of x_data_full
-
         return x_stacked, y_stacked
+
+    def _load_raw_data(self, data_source):
+        """
+        Collects and loads raw data sources as dataframes.
+        :param data_source: the data to load.
+        :return: collection of dataframes loaded from the source data.
+        """
+        files_to_load = self._collect_files_to_load(data_source)
+        return self._load_files_as_dataframes(files_to_load)
+
+    def _apply_scaler(self, dataframes, fit_scaler):
+        """
+        Applies scaling to a dataset. Optionally fits the scaler to this set or re-uses a previously fit scaler.
+        :param dataframes: the collection of dataframes to be scaled
+        :param fit_scaler: flag indicating if a new scaler object should be created and fit to this set.
+        :return: None.
+        """
+        if fit_scaler:
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            # Fit to concatenated set to ensure scaler sees full range of values
+            scaler.fit(pd.concat(dataframes))
+            self.set_scaler(scaler)
+        elif self.get_scaler() is not None:
+            scaler = self.get_scaler()
+        else:
+            self._logger.warning("fit_scaler disabled: scaling will be skipped.")
+            return
+
+        # TODO check that all dataframes have len > 0
+
+        # Apply scaler
+        for index, df in enumerate(dataframes):
+            dataframes[index] = pd.DataFrame(scaler.transform(df), columns=df.columns)
+        return
 
     def _load_midi_file(self, path):
         """
@@ -158,7 +138,7 @@ class MidiDataLoader(DataLoader):
         :return: Pandas Dataframe containing encoded vector sequence and configured features.
         """
 
-        self._configure_fields()
+        self._configure_fields_to_extract()
 
         # Load MIDI file as a Data Frame
         midi_dataframe = self._reader.convert_to_dataframe(path)
@@ -210,12 +190,7 @@ class MidiDataLoader(DataLoader):
         return files_to_load
 
     def _load_files_as_dataframes(self, files_to_load):
-        """
-        TODO
-        :param files_to_load:
-        :return:
-        """
-        # TODO cache is only valid for same nn_features!
+        # TODO cache is only valid for same nn_features! -> use nn_features as part of ID
         dataframes = []
         for midi_file in files_to_load:
             encoder_id = self.get_encoder().get_id()
@@ -242,12 +217,13 @@ class MidiDataLoader(DataLoader):
             files_to_load += list(self.find_files_in_path_by_type(data_source, self.MIDI_FILE_EXTENSION))
         return files_to_load
 
-    def _configure_fields(self):
+    def _configure_fields_to_extract(self):
         """
         Configures the fields to extract when loading MIDI files.
         :return: None
         """
         # Configure values MidiReader should extract
+        # TODO constants
         if 'timestamp' not in self._params['nn_features']:
             self._reader.set_extract_timestamp(False)
         if 'bpm' not in self._params['nn_features']:

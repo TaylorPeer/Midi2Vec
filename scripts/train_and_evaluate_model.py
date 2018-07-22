@@ -2,7 +2,7 @@ import sys
 import logging
 from encoding import Encoder
 from evaluation import Evaluator
-from sequence_learning import SequenceLearner
+from sequence_learning import GenerativeSequenceLearner
 from data_loading import MidiDataLoader
 
 from midi_to_dataframe import NoteMapper
@@ -65,14 +65,14 @@ def main():
 
     # Load training MIDI files using MidiDataLoader
     data_loader = MidiDataLoader(note_mapper, params=model_params, encoder=encoder)
-    training_data = data_loader.load_data(training_docs)
+    training_data = data_loader.load_data_as_array(training_docs)
 
     # Set fit_scaler=False to re-use scaler from training set
-    test_data = data_loader.load_data(evaluation_docs, fit_scaler=False)
+    test_data = data_loader.load_data_as_array(evaluation_docs, fit_scaler=False)
     (x_test, y_test) = test_data
 
     # Train sequence learning model
-    sequence_model = SequenceLearner(model_params)
+    sequence_model = GenerativeSequenceLearner(model_params)
     sequence_model.train(training_data)
 
     # Apply trained model to test set

@@ -33,7 +33,7 @@ def process_directory(midi_directory, note_mapping_config_path, output_file_name
                     df = midi_reader.convert_to_dataframe(path)
 
                     grouped = df.groupby('measure')['notes'].apply(','.join)
-                    for measure, notes in grouped.items():
+                    for _, notes in grouped.items():
                         output_file.write(notes + "\n")
 
                 except Exception:
@@ -45,7 +45,7 @@ def process_directory(midi_directory, note_mapping_config_path, output_file_name
 def main():
     # Output file
     file_path = '/Users/taylorpeer/Projects/se-project/midi-embeddings/data'
-    file_name = "full_1_measure.line"
+    file_name = "1_measure_full.txt"
     file_full = os.path.join(file_path, file_name)
 
     corpus_dir = "/Users/taylorpeer/Projects/se-project/midi-embeddings/data/corpora/web-midi"

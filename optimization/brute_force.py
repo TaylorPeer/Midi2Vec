@@ -28,32 +28,19 @@ class BruteForce(Optimizer):
             return params
         return None
 
-    def process_run_result(self, params, metrics, encoder, sequence_learner):
+    def process_run_result(self, params, score, encoder, sequence_learner):
         """
         Processes the results of a single run of the pipeline.
         :param params: the hyperparameter settings of the run.
-        :param metrics: the evaluation metrics of the run.
+        :param score: the evaluation score of the run.
         :param encoder: the encoder used during the run.
         :param sequence_learner: the sequence learner used during the run
         :return: None
         """
 
-        # TODO make determining metric configurable
-        f1 = metrics['f1']
-
-        # TODO should be in Optimizer, not here:
-        if self.is_model_saving_enabled():
-            best_model = self.get_best_model()
-            if best_model is not None:
-                (best_f1, _) = best_model
-                if best_f1 < f1:
-                    self.set_best_model(f1, (params, encoder, sequence_learner))
-            else:
-                self.set_best_model(f1, (params, encoder, sequence_learner))
-
         callback = self.get_callback()
         if callback is not None:
-            callback(params=params, metrics=metrics, abort=self._abort)
+            callback(params=params, score=score, abort=self._abort)
 
     def _abort(self):
         """

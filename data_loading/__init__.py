@@ -1,1 +1,1 @@
-from .data_loaders import MidiDataLoader
+from .midi_data_loader import MidiDataLoader

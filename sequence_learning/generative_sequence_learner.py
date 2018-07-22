@@ -1,5 +1,3 @@
-import logging
-import time
 import numpy as np
 import pandas as pd
 from keras.models import Sequential
@@ -7,40 +5,17 @@ from keras.layers import Dropout
 from keras.layers.recurrent import LSTM
 from keras.layers.core import Dense, Activation
 from keras import backend as K
-from keras.models import load_model
-from keras import optimizers
+
+from sequence_learning.base_sequence_learner import BaseSequenceLearner
 
 
-class SequenceLearner:
+class GenerativeSequenceLearner(BaseSequenceLearner):
     """
-    Sequence learning object.
+    Sequence learning module for generative tasks.
     """
 
-    def __init__(self, params):
-        self._logger = logging.getLogger(__name__)
-        self._model = None
-        self._params = params
-
-    def save(self, save_to_path):
-        """
-        Saves the (trained) Keras model.
-        :param save_to_path: the path where the model should be stored.
-        :return: None.
-        """
-        if self._model is None:
-            self._logger.error("SequenceLearner could not be saved because it is null.")
-        else:
-            self._model.save(save_to_path)
-            self._logger.info("SequenceLearner saved to: " + str(save_to_path))
-
-    def load(self, path_to_stored_model):
-        """
-        Loads a (trained) Keras model from disk.
-        :param path_to_stored_model: the path to load from.
-        :return: None.
-        """
-        self._model = load_model(path_to_stored_model)
-        self._logger.info("SequenceLearner loaded from: " + str(path_to_stored_model))
+    def __init__(self, params, ):
+        super(GenerativeSequenceLearner, self).__init__(params)
 
     def train(self, training_data):
         """
@@ -65,9 +40,11 @@ class SequenceLearner:
                                         optimizer=self._params['nn_optimizer'])
 
         # Train model
-        # TODO "verbose" as configurable parameter (for debuggign)
-        self._model.fit(x_train, y_train, verbose=0, batch_size=self._params['nn_batch_size'],
-                        epochs=self._params['nn_epochs'])
+        self._model.fit(x_train, y_train,
+                        verbose=1,
+                        batch_size=self._params['nn_batch_size'],
+                        epochs=self._params['nn_epochs'],
+                        callbacks=[self._loss_history])
 
     def predict(self, data):
         """
@@ -151,8 +128,8 @@ class SequenceLearner:
         K.clear_session()
 
     @staticmethod
-    def _build_model(num_features, layer_count, num_hidden_neurons, lstm_activation, dense_activation,
-                     dropout_rate, loss, optimizer):
+    def _build_model(num_features, layer_count, num_hidden_neurons, lstm_activation, dense_activation, dropout_rate,
+                     loss, optimizer):
         """
         Builds a deep neural network with the configured parameters.
         :param num_features: size of each feature vector.
@@ -192,33 +169,9 @@ class SequenceLearner:
 
         # Add final dense layer for output
         model.add(Dense(num_features, input_dim=num_hidden_neurons))
+
         # TODO dropout for final layer (?)
         model.add(Activation(dense_activation))
 
-        model.compile(loss=loss, optimizer=SequenceLearner._get_optimizer(optimizer))
+        model.compile(loss=loss, optimizer=GenerativeSequenceLearner._get_optimizer(optimizer))
         return model
-
-    @staticmethod
-    def _get_optimizer(name):
-        """
-        TODO
-        :param name:
-        :return:
-        """
-        if name == 'sgd':
-            return optimizers.SGD()
-        if name == 'rmsprop':
-            return optimizers.RMSprop()
-        if name == 'adagrad':
-            return optimizers.Adagrad()
-        if name == 'adadelta':
-            return optimizers.Adadelta()
-        if name == 'adam':
-            return optimizers.Adam()
-        if name == 'adamax':
-            return optimizers.Adamax()
-        if name == 'nadam':
-            return optimizers.Nadam()
-
-        # TODO what if none matched...
-        print("optimizer string was " + str(name))

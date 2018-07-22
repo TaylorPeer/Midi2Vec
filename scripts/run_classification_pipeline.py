@@ -3,16 +3,20 @@ import logging
 
 from data_loading import MidiDataLoader
 from midi_to_dataframe import NoteMapper
-from pipeline import Pipeline
+from pipeline import ClassificationPipeline
+from evaluation import LossEvaluator
 
 logger = logging.getLogger()
 logger.level = logging.INFO
 stream_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(stream_handler)
 
+logging.getLogger("gensim").setLevel(logging.WARNING)
+
 
 def main():
     # Documents used to train semantic encoder model
+    # encoder_training_docs = "../../midi-embeddings/data/1_measure_full.txt"
     encoder_training_docs = "../resources/encoder_training_docs/full_1_measure_20k.txt"
 
     pipeline_params = {
@@ -21,25 +25,27 @@ def main():
         'doc2vec_docs': encoder_training_docs,
         'doc2vec_dm': 1,
         'doc2vec_dm_mean': 1,
-        'doc2vec_epochs': 1,
+        'doc2vec_epochs': 2,
         'doc2vec_hs': 0,
         'doc2vec_learning_rate_start': 0.025,
         'doc2vec_learning_rate_end': 0.2,
-        'doc2vec_min_count': 5,
+        'doc2vec_min_count': 10,
         'doc2vec_negative': 0,
-        'doc2vec_vector_size': 4,
-        'doc2vec_window': 1,
+        'doc2vec_vector_size': 8,  # 24,
+        'doc2vec_window': 10,  # 3,
 
         # Sequence learning (Keras LSTM) settings:
         'nn_features': ['bpm', 'measure', 'beat'],
-        'nn_batch_size': 100,
+        'nn_batch_size': 128,
         'nn_dense_activation_function': "linear",
-        'nn_dropout': 0.05,
-        'nn_epochs': 5,
-        'nn_hidden_neurons': 10,
-        'nn_layers': 10,
+        'nn_dropout': 0,
+        'nn_epochs': 1,
+        'nn_hidden_neurons': 8,  # 30,
+        'nn_layers': 4,  # 15,
         'nn_lstm_activation_function': "selu",
-        'nn_lstm_n_prev': 4
+        'nn_lstm_n_prev': 1024,
+        'nn_loss': 'mean_absolute_error',
+        'nn_optimizer': 'rmsprop'
     }
 
     # Define note mapper for MIDI file loading
@@ -50,19 +56,16 @@ def main():
     data_loader = MidiDataLoader(note_mapper, params=pipeline_params)
 
     # Define training documents for sequence learning
-    training_docs = ["../resources/breakbeats/084 Breakthru.mid", "../resources/breakbeats/086 Clouds.mid",
-                     "../resources/breakbeats/089 Get Out.mid", "../resources/breakbeats/089 Wrong.mid",
-                     "../resources/breakbeats/090 Deceive.mid", "../resources/breakbeats/090 New York.mid",
-                     "../resources/breakbeats/090 Radio.mid", "../resources/breakbeats/093 Pretender.mid",
-                     "../resources/breakbeats/093 Right Won.mid", "../resources/breakbeats/094 Run.mid"]
+    training_docs = ["/Users/taylorpeer/Projects/se-project/Midi2Vec/resources/classification/fold1",
+                     "/Users/taylorpeer/Projects/se-project/Midi2Vec/resources/classification/fold2",
+                     "/Users/taylorpeer/Projects/se-project/Midi2Vec/resources/classification/fold3"]
 
-    pipeline = Pipeline(params=pipeline_params)
+    pipeline = ClassificationPipeline(params=pipeline_params)
     pipeline.set_data_loader(data_loader)
     pipeline.set_training_docs(training_docs)
-    pipeline.set_k_fold_cross_eval(k=5)
-
-    results_df = pipeline.run()
-    print(results_df.to_string())
+    pipeline.set_k_fold_cross_eval(k=3)
+    pipeline.set_evaluator(LossEvaluator())
+    pipeline.run()
 
 
 if __name__ == '__main__':

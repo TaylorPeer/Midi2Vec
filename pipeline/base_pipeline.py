@@ -1,56 +1,96 @@
 import os
-import logging
 import time
+import logging
 import json
 import numpy as np
 import pandas as pd
+from evaluation import Metrics
 from sklearn.model_selection import KFold
 
 from encoding import Encoder
-from evaluation import Evaluator, Metrics
-from sequence_learning.sequence_learner import SequenceLearner
+
+from abc import ABC
 
 
-class Pipeline:
+class BasePipeline(ABC):
     """
     End-to-end encapsulation of encoder training, sequence learning and evaluation.
     """
 
-    def __init__(self, params=None, data_loader=None, training_docs=None, test_docs=None):
+    def __init__(self, params=None, data_loader=None, training_docs=None, test_docs=None, method=lambda: None):
         self._logger = logging.getLogger(__name__)
         self._params = params
         self._encoder = None
         self._data_loader = data_loader
         self._sequence_learner = None
-        self._training_docs = training_docs
-        self._test_docs = test_docs
+        self._training_docs = None
+        self._test_docs = None
         self._k_folds = 0
         self._optimizer = None
+        self._evaluator = None
+
+        self.set_training_docs(training_docs)
+        self.set_test_docs(test_docs)
 
         # Encoder training documents cache
         self._encoder_docs = {}
 
-        # Encoder cache
+        # Encoder in-memory cache
         self._trained_encoders = {}
 
-        # TODO make configurable
-        # TODO store doc2vec models here, reload as necessary
-        self._temp_dir = "temp"
+        # Encoder disk-cache directory
+        self._encoder_dir = None
+
+        # TODO model saving
+        self._save_best_model_path = None
+        self._save_best_model_name = None
+        self._best_model = None
+
+        # TODO
+        self._train_and_evaluate = method
+
+    def set_encoder_cache_dir(self, encoder_cache_dir):
+        self._encoder_dir = encoder_cache_dir
 
     def set_data_loader(self, data_loader):
         self._data_loader = data_loader
 
     def set_training_docs(self, training_docs):
+        # TODO: _collect_files_to_load
         self._training_docs = training_docs
 
     def set_test_docs(self, test_docs):
         self._test_docs = test_docs
 
-    def set_k_fold_cross_eval(self, k=0):
+    def set_k_fold_cross_eval(self, k=0):  # TODO rename
         self._k_folds = k
+
+    def set_evaluator(self, evaluator):
+        self._evaluator = evaluator
+
+    def get_evaluator(self):
+        return self._evaluator
 
     def set_optimizer(self, optimizer):
         self._optimizer = optimizer
+
+    def _get_best_model(self):
+        return self._best_model
+
+    def _set_best_model(self, score, best_model):
+        self._best_model = (score, best_model)
+
+    def save_best_model(self, save_path, model_name):
+        self._save_best_model_path = save_path
+        self._save_best_model_name = model_name
+
+    def _is_model_saving_enabled(self):
+        if self._save_best_model_path is not None and self._save_best_model_name is not None:
+            return True
+        return False
+
+    def _get_model_save_path_and_name(self):
+        return self._save_best_model_path, self._save_best_model_name
 
     def run(self):
         """
@@ -75,37 +115,49 @@ class Pipeline:
         while params is not None:
 
             # Get collection of training and test sets for current run
-            current_metrics = Metrics()
             data_sets = self._get_training_and_test_sets()
-            for data_set_index, (training_docs, test_docs) in enumerate(data_sets):
+            for set_index, (training_docs, test_docs) in enumerate(data_sets):
 
                 # Retrieve an encoder module trained with the specified configuration
                 self._encoder = self._get_encoder(params)
 
-                data_set_index += 1  # Only used for user output, so start index at 1
+                set_index += 1  # Only used for user output, so start index at 1
 
                 num_sets = len(data_sets)
                 if num_sets > 1:
-                    self._logger.info(
-                        "Training and evaluating fold " + str(data_set_index) + " of " + str(num_sets) + ".")
+                    self._logger.info("Training and evaluating fold {} of {}.".format(set_index, num_sets))
 
                 start = time.time()
-                self._train_and_eval_seq_learning(params, self._encoder, training_docs, test_docs, current_metrics)
-                end = time.time()
-                message = "Trained and evaluated fold " + str(data_set_index) + " of sequence model in " + str(
-                    end - start) + " seconds."
-                self._logger.info(message)
+                self._train_and_evaluate(params, self._encoder, training_docs, test_docs)
+                runtime = time.time() - start
+                self._logger.info(
+                    "Trained and evaluated fold {} of sequence model in {} seconds.".format(set_index, runtime))
 
-            # Store evaluation metrics of run
-            result_row = {**params, **current_metrics.get_scores_as_dict()}
-            result_rows.append(result_row)
+                # Combine run parameters with evaluation results and store
+                result_row = {**params, **self._evaluator.get_score_as_dict()}
+                result_rows.append(result_row)
 
-            # Invoke optimizer callback to report on results of this run
-            if self._optimizer is not None:
-                self._optimizer.process_run_result(params=params,
-                                                   metrics=current_metrics.get_scores_as_dict(),
-                                                   encoder=self._encoder,
-                                                   sequence_learner=self._sequence_learner)
+                # Check if model should be saved
+                if self._is_model_saving_enabled():
+
+                    operator = self._evaluator.get_operator()
+                    current_score = self._evaluator.get_score()
+
+                    best_model = self._get_best_model()
+                    if best_model is not None:
+                        (best_metric, _) = best_model
+                        if not operator(best_metric, current_score):
+                            self._set_best_model(current_score, (params, self._encoder, self._sequence_learner))
+                    else:
+                        # New model is the best one if no previous existed
+                        self._set_best_model(current_score, (params, self._encoder, self._sequence_learner))
+
+                # Invoke optimizer callback to report on results of this run
+                if self._optimizer is not None:
+                    self._optimizer.process_run_result(params=params,
+                                                       score=self._evaluator.get_score_as_dict(),
+                                                       encoder=self._encoder,
+                                                       sequence_learner=self._sequence_learner)
 
             # Check if there are additional runs to execute
             if self._optimizer is not None:
@@ -113,22 +165,19 @@ class Pipeline:
             else:
                 params = None
 
-        # Clear Keras/Tensorflow models
-        # (seems to cause a memory leak unless this is called)
-        self._sequence_learner.clear_session()
-
         # Store best model, if configured
-        if self._optimizer.is_model_saving_enabled():
-            path, name = self._optimizer.get_model_save_path_and_name()
+        if self._is_model_saving_enabled():
+            path, name = self._get_model_save_path_and_name()
             try:
                 self.save(path, name)
             except Exception:
+                self._logger.error("Failed to save model, clearing Keras session and trying again.")
                 self._sequence_learner.clear_session()
                 self.save(path, name)
 
-        # Clear Keras/Tensorflow models
-        # TODO again?
-        self._sequence_learner.clear_session()
+        # Clear Keras/Tensorflow models # TODO why a second time?
+        if self._sequence_learner is not None:
+            self._sequence_learner.clear_session()
 
         return pd.DataFrame(result_rows)
 
@@ -141,7 +190,7 @@ class Pipeline:
         """
 
         # Get score, round to 2 digits, use as part of save name
-        score, (params, encoder, sequence_learner) = self._optimizer.get_best_model()
+        score, (params, encoder, sequence_learner) = self._get_best_model()
         score = str(round(score, 2))
 
         # Create save dir
@@ -205,24 +254,43 @@ class Pipeline:
         :param params: the encoder parameters.
         :return: the trained encoder model.
         """
+        # TODO: refactor method
 
+        # Check if encoder was already trained with these parameters
         encoder_id = Encoder.generate_id(params)
+        self._logger.debug("Retrieving encoder model: " + str(encoder_id))
 
-        # Check if already trained
+        # Check if matching encoder is in memory
         if encoder_id in self._trained_encoders:
-            # TODO do not store encoder in memory
-            # TODO save to temp directory and re-load
-            self._logger.debug("Loading encoder from cache: " + str(encoder_id))
+            self._logger.debug("Loading encoder from in-memory cache: " + str(encoder_id))
             return self._trained_encoders[encoder_id]
         else:
-            self._logger.debug("Training new encoder model: " + str(encoder_id))
-            encoder = Encoder(params)
-            docs = self._get_docs(encoder, params['doc2vec_docs'])
-            encoder.set_documents(docs)
-            encoder.train()
-            self._trained_encoders[encoder_id] = encoder
-            self._logger.debug("Added encoder to cache: " + str(encoder_id))
-            return encoder
+            # Check if matching encoder on disk
+            prev_model = None
+            if self._encoder_dir is not None:
+                prev_model = Encoder.load_if_exists(self._encoder_dir, encoder_id)
+
+            if prev_model is not None:
+                self._logger.debug("Loaded encoder from disk-cache: " + str(encoder_id))
+                encoder = Encoder(params)
+                docs = self._get_docs(encoder, params['doc2vec_docs'])
+                encoder.set_documents(docs)
+                encoder.set_model(prev_model)
+                self._trained_encoders[encoder_id] = encoder
+                return encoder
+            else:
+                self._logger.debug("Training new encoder model: " + str(encoder_id))
+                encoder = Encoder(params)
+                docs = self._get_docs(encoder, params['doc2vec_docs'])
+                encoder.set_documents(docs)
+                encoder.train()
+                self._trained_encoders[encoder_id] = encoder
+                self._logger.debug("Added encoder to cache: " + str(encoder_id))
+
+                # Save encoder
+                if self._encoder_dir is not None:
+                    encoder.save(self._encoder_dir + "/" + encoder_id)
+                return encoder
 
     def _get_docs(self, encoder, path):
         """
@@ -241,52 +309,3 @@ class Pipeline:
             self._encoder_docs[path] = docs
             self._logger.debug("Added documents to cache: " + path)
             return docs
-
-    def _train_and_eval_seq_learning(self, params, encoder, training_docs, test_docs, metrics):
-        """
-        TODO refactor, split into separate functions (train vs. eval)
-        """
-        # Load training data with trained encoder
-        self._data_loader.set_encoder(encoder)
-        self._data_loader.set_params(params)
-
-        # Load training and test data, fitting scaler to training and re-using on test
-        training_data = self._data_loader.load_data(training_docs)
-        test_data = self._data_loader.load_data(test_docs, fit_scaler=False)
-        (x_test, y_test) = test_data
-
-        # Train sequence learning model
-        self._sequence_learner = SequenceLearner(params)
-        self._sequence_learner.train(training_data)
-
-        # Apply trained model to test set
-        predicted = self._sequence_learner.predict(x_test)
-
-        # Evaluate accuracy of model on test set
-        # TODO type of evaluator probably depends on data
-        # TODO pass from outside (like data_loader)
-        evaluator = Evaluator()
-
-        # TODO: is this metric useful?
-        # average_error = evaluator.compute_average_error(predicted, y_test)
-
-        # Un-scale predicted and actual values
-        scaler = self._data_loader.get_scaler()
-
-        try:
-            predicted = scaler.inverse_transform(predicted)
-            y_test = scaler.inverse_transform(y_test)
-        except ValueError:
-            self._logger.error(
-                "Unable to un-scale values. \n\tPredicted: \n" + str(predicted) + "\n\tTest: \n" + str(y_test))
-            metrics.log_run(precision=0, recall=0, f1=0)
-            return
-
-        # Convert actual and predicted vectors to sequence of text values
-        predicted_values = encoder.convert_feature_vectors_to_text(predicted)
-        actual_values = encoder.convert_feature_vectors_to_text(y_test)
-
-        # Compute accuracy by measuring precision/recall of predicted vs. actual values at every timestamp of evaluation
-        (precision, recall, f1) = evaluator.compute_seq_accuracy(predicted_values, actual_values)
-
-        metrics.log_run(precision=precision, recall=recall, f1=f1)
