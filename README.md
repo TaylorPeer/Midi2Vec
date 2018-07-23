@@ -66,7 +66,6 @@ training_docs = ["../resources/midi/bach_chorales/01-AchGottundHerr.mid",
 
 pipeline = GenerativePipeline(params=pipeline_params)
 pipeline.set_data_loader(data_loader)
-pipeline.set_encoder_cache_dir("../notebooks/encoders")
 pipeline.set_training_docs(training_docs)
 pipeline.set_k_fold_cross_eval(k=3)
 pipeline.set_evaluator(F1Evaluator())
@@ -78,6 +77,6 @@ result_df = pipeline.run()
 
 Several *Jupyter* notebooks demonstrating the use of Midi2Vec are available:
 
-* Parameter sweep and evaluation of a GenerativePipeline: 
-* Encoder inspection: 
-* Sequence Generation: 
+* Parameter sweep and evaluation of a GenerativePipeline: https://github.com/TaylorPeer/Midi2Vec/blob/master/notebooks/Hyperparameter%20Optimization%20and%20Evaluation.ipynb
+* Encoder inspection: https://github.com/TaylorPeer/Midi2Vec/blob/master/notebooks/Midi2Vec%20Model%20Inspection.ipynb
+* Sequence Generation: https://github.com/TaylorPeer/Midi2Vec/blob/master/notebooks/Sequence%20Generation.ipynb
